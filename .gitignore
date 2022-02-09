@@ -212,7 +212,12 @@ pip-selfcheck.json
 # End of https://www.toptal.com/developers/gitignore/api/macos,python,jupyternotebooks,venv
 
 #further folders
-ICL_Week_1_EOezalp/
 ICL_Week_2_EOezalp/
+ICL_Week_1_EOezalp/
 Images/
 CSV/
+50_window/
+100_window/
+logs/
+models/
+Latex/
