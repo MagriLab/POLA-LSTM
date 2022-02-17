@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
@@ -15,7 +16,7 @@ def solution_from_np(filename):
 
 
 if __name__ == "main":
-    t, x, y, z = solution_from_np("CSV/lorenz_init1.csv")
+    t, x, y, z = solution_from_np("CSV/lorenz_trans_001.csv")
     t, x_2, y_2, z_2 = solution_from_np("CSV/lorenz_init2.csv")
     n = len(x)
 
@@ -31,21 +32,44 @@ if __name__ == "main":
     s = 100
     cmap = plt.cm.winter  # winter
     cmap_2 = plt.cm.autumn  # autumn
+    n = math.ceil(len(x) * 0.6)  # training
     for i in range(0, n - s, s):
         ax.plot(
             x[i : i + s + 1],
             y[i : i + s + 1],
             z[i : i + s + 1],
-            color=cmap(i / n),
+            color="b",
             alpha=0.4,
         )
+        plt.pause(0.1)
+    n_val = math.ceil(len(x) * 0.8)  # valid
+    for i in range(n, n_val - s, s):
         ax.plot(
-            x_2[i : i + s + 1],
-            y_2[i : i + s + 1],
-            z_2[i : i + s + 1],
-            color=cmap_2(i / n),
+            x[i : i + s + 1],
+            y[i : i + s + 1],
+            z[i : i + s + 1],
+            color="r",
             alpha=0.4,
         )
-        plt.title("Solution of Lorenz system")
-        plt.show()
+        plt.pause(0.1)
+    n_test = math.ceil(len(x))  # valid
+    for i in range(n, n_test - s, s):
+        ax.plot(
+            x[i : i + s + 1],
+            y[i : i + s + 1],
+            z[i : i + s + 1],
+            color="g",
+            alpha=0.4,
+        )
+        plt.pause(0.1)
+
+        # ax.plot(
+        #     x_2[i : i + s + 1],
+        #     y_2[i : i + s + 1],
+        #     z_2[i : i + s + 1],
+        #     color=cmap_2(i / n),
+        #     alpha=0.4,
+        # )
+        # fig.title("Solution of Lorenz system")
+        # fig.show()
         plt.pause(0.1)  # plot both curves incrementally
