@@ -126,7 +126,8 @@ class FeedBack(tf.keras.Model):
                 # prediction_oloop, prediction_cloop = self.loss_cloop_batch(
                 #     batch, data_oloop, label_oloop, data_cloop, label_cloop
                 # )
-                with tf.GradientTape() as tape:
+                with tf.GradientTape(persistent=True) as tape:
+                    tape.watch(self.trainable_variables)
                     prediction_oloop, state = self.warmup(
                         data_oloop
                     )  # Forward pass open loop
@@ -136,9 +137,8 @@ class FeedBack(tf.keras.Model):
                     )  # Forward pass closed loop
                     loss_cloop = self.compiled_loss(label_cloop, prediction_cloop)
 
-                loss = loss_cloop + loss_oloop
+                    loss = loss_cloop + loss_oloop
                 gradients = tape.gradient(loss, self.trainable_variables)
-                print(gradients)
                 self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
             loss_tracker.update_state(label_oloop, prediction_oloop)

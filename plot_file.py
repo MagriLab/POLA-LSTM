@@ -31,7 +31,7 @@ def plot_closed_loop_lya(
     window_size=50,
 ):
     lyapunov_time, pred_closed_loop = prediction_closed_loop(
-        model, time_test, df_test, n_length
+        model, time_test, df_test, n_length, window_size=window_size
     )
     test_time_end = len(pred_closed_loop)
 

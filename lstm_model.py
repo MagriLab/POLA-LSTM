@@ -75,10 +75,18 @@ def loss_oloop(y_true, y_pred, washout=10):
     return loss
 
 
+def loss_oloop_reg(y_true, y_pred, washout=10):
+    mse = tf.keras.losses.MeanSquaredError()  # reduction=tf.keras.losses.Reduction.SUM
+    loss = mse(y_true[washout:, :], y_pred[washout:, :]) + 0.001 * tf.nn.l2_loss(
+        y_pred[washout:, :]
+    )  # (batchsize, dimensions)
+    return loss
+
+
 def build_open_loop_lstm(cells=100):
     model = tf.keras.models.Sequential(
         [
-            tf.keras.layers.LSTM(cell, activation="relu", name="LSTM_1"),
+            tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"),
             tf.keras.layers.Dense(3, name="Dense_1"),
         ]
     )
@@ -119,15 +127,17 @@ def load_open_loop_lstm(model_checkpoint):
     return model
 
 
-def prediction_closed_loop(model, time_test, df_test, n_length):
-    lyapunov_time = compute_lyapunov_time_arr(time_test)
-    test_window = create_window_closed_loop(df_test.transpose(), 0)
+def prediction_closed_loop(model, time_test, df_test, n_length, window_size=50):
+    lyapunov_time = compute_lyapunov_time_arr(time_test, window_size=window_size)
+    test_window = create_window_closed_loop(
+        df_test.transpose(), 0, window_size=window_size
+    )
 
     predictions = model.predict(test_window)
     predictions = np.array(predictions).reshape(1, 3)
     for iteration in range(1, n_length):
         test_window = create_window_closed_loop(
-            df_test.transpose(), iteration, predictions
+            df_test.transpose(), iteration, window_size=window_size, pred=predictions
         )
         new_pred = model.predict(test_window)
         new_pred = np.array(new_pred).reshape(1, 3)
