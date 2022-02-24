@@ -212,7 +212,7 @@ pip-selfcheck.json
 # End of https://www.toptal.com/developers/gitignore/api/macos,python,jupyternotebooks,venv
 
 #further folders
-lorenz_data/CSV/
+src/lorenz_data/CSV/
 logs/
 models/
 notebooks/
