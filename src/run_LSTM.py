@@ -33,7 +33,7 @@ def reset_random_seeds():
 # %load_ext tensorboard
 
 # Data imports
-mydf = np.genfromtxt("../lorenz_data/CSV/Lorenz_trans_001_norm_100000.csv", delimiter=",")
+mydf = np.genfromtxt("lorenz_data/CSV/Lorenz_trans_001_norm_100000.csv", delimiter=",")
 time = mydf[0, :]
 mydf = mydf[1:, :]
 df_train, df_valid, df_test = df_train_valid_test_split(mydf)
