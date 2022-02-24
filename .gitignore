@@ -217,3 +217,4 @@ logs/
 models/
 notebooks/
 
+.ipynb
