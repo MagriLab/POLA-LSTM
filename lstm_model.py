@@ -13,19 +13,21 @@ from data_processing import (
 )
 from loss import loss_oloop, loss_oloop_reg
 
+lorenz_dim = 3
+
 
 def create_window_closed_loop(test_data, iteration, window_size=50, pred=np.array([])):
     if iteration == 0:
-        return test_data[:window_size, :].reshape(1, window_size, 3)
+        return test_data[:window_size, :].reshape(1, window_size, lorenz_dim)
     if iteration < window_size:
         n_pred = pred.shape[0]
         idx_test_entries = (
             iteration + window_size - n_pred
         )  # end index of entries from the test data,
         test_data = test_data[iteration:idx_test_entries, :]
-        return np.append(test_data, pred, axis=0).reshape(1, window_size, 3)
+        return np.append(test_data, pred, axis=0).reshape(1, window_size, lorenz_dim)
     else:
-        return pred[-window_size:, :].reshape(1, window_size, 3)
+        return pred[-window_size:, :].reshape(1, window_size, lorenz_dim)
 
 
 def add_new_pred(pred_old, pred_new):
@@ -42,9 +44,12 @@ def select_random_window_with_label(df_transposed, n_windows, window_size=50):
     idx = random.sample(range(len(df_transposed) - window_size - 1), n_windows)
     # window_list =[]
     window_list = [
-        df_transposed[i : i + window_size, :].reshape(1, window_size, 3) for i in idx
+        df_transposed[i : i + window_size, :].reshape(1, window_size, lorenz_dim)
+        for i in idx
     ]
-    label_list = [df_transposed[i + window_size + 1, :].reshape(1, 3) for i in idx]
+    label_list = [
+        df_transposed[i + window_size + 1, :].reshape(1, lorenz_dim) for i in idx
+    ]
     return window_list, label_list, idx
 
 
@@ -53,9 +58,12 @@ def select_random_batch_with_label(df_transposed, window_size=50, batch_size=32)
     idx = np.arange(start=idx_start, stop=idx_start + batch_size)
     # window_list =[]
     window_list = [
-        df_transposed[i : i + window_size, :].reshape(1, window_size, 3) for i in idx
+        df_transposed[i : i + window_size, :].reshape(1, window_size, lorenz_dim)
+        for i in idx
     ]
-    label_list = [df_transposed[i + window_size + 1, :].reshape(1, 3) for i in idx]
+    label_list = [
+        df_transposed[i + window_size + 1, :].reshape(1, lorenz_dim) for i in idx
+    ]
     return window_list, label_list, idx
 
 
@@ -71,10 +79,12 @@ def select_random_batches_with_label(
     # for i in idx_list:
     #     print(i, len(df_transposed[i : i + 50, :]))
     window_list = [
-        df_transposed[i : i + window_size, :].reshape(1, window_size, 3)
+        df_transposed[i : i + window_size, :].reshape(1, window_size, lorenz_dim)
         for i in idx_list
     ]
-    label_list = [df_transposed[i + window_size + 1, :].reshape(1, 3) for i in idx_list]
+    label_list = [
+        df_transposed[i + window_size + 1, :].reshape(1, lorenz_dim) for i in idx_list
+    ]
     return np.array(window_list), np.array(label_list), idx_list
 
 
@@ -89,9 +99,9 @@ def add_cloop_prediction(df_transposed, idx, predictions, window_size=50):
         [
             np.append(
                 df_transposed[idx[i] + 1 : idx[i] + window_size, :],
-                predictions[i, :].reshape(1, 3),
+                predictions[i, :].reshape(1, lorenz_dim),
                 axis=0,
-            ).reshape(window_size, 3)
+            ).reshape(window_size, lorenz_dim)
             for i in range(0, len(idx))
         ]
     )
@@ -103,7 +113,7 @@ def build_open_loop_lstm(cells=100):
     model = tf.keras.models.Sequential(
         [
             tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"),
-            tf.keras.layers.Dense(3, name="Dense_1"),
+            tf.keras.layers.Dense(lorenz_dim, name="Dense_1"),
         ]
     )
     optimizer = tf.keras.optimizers.Adam()
@@ -124,7 +134,7 @@ def train_oloop(model, epochs, train_dataset, batch_size):
                 # Compute the loss value for this minibatch.
                 loss_value = loss_oloop(y_batch_train, logits)
             grads = tape.gradient(loss_value, model.trainable_weights)
-            optimizer.apply_gradients(zip(grads, model.trainable_weights))
+            model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
             # Log every 200 batches.
             if step % 200 == 0:
@@ -150,12 +160,12 @@ def prediction_closed_loop(model, time_test, df_test, n_length, window_size=50):
     )
 
     predictions = model.predict(test_window)
-    predictions = np.array(predictions).reshape(1, 3)
+    predictions = np.array(predictions).reshape(1, lorenz_dim)
     for iteration in range(1, n_length):
         test_window = create_window_closed_loop(
             df_test.transpose(), iteration, window_size=window_size, pred=predictions
         )
         new_pred = model.predict(test_window)
-        new_pred = np.array(new_pred).reshape(1, 3)
+        new_pred = np.array(new_pred).reshape(1, lorenz_dim)
         predictions = add_new_pred(predictions, new_pred)
     return lyapunov_time, predictions
