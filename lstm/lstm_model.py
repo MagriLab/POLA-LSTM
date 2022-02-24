@@ -1,9 +1,11 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import time
 import random
-import tensorflow_datasets as tfds
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
+import tensorflow_datasets as tfds
+
 from .loss import loss_oloop, loss_oloop_reg
 
 lorenz_dim = 3

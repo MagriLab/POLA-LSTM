@@ -1,22 +1,25 @@
 import os
+import sys
 import warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
-import sys
+
 import matplotlib.pyplot as plt
 plt.rcParams["figure.facecolor"] = "w"
 import datetime
-import random
-import tensorflow as tf
-import numpy as np
-import time
-import tensorflow_datasets as tfds
 import importlib
+import random
+import time
 
+import numpy as np
+import tensorflow as tf
+import tensorflow_datasets as tfds
 
 sys.path.append('../')
-from lstm.preprocessing.data_processing import create_df_3d, train_valid_test_split, df_train_valid_test_split
-from lstm.lstm_model import build_open_loop_lstm, load_open_loop_lstm
 import lstm.postprocessing.plots
+from lstm.lstm_model import build_open_loop_lstm, load_open_loop_lstm
+from lstm.preprocessing.data_processing import (create_df_3d,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
 
 
 def reset_random_seeds():

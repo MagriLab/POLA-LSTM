@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow_datasets as tfds
 import tensorflow as tf
+import tensorflow_datasets as tfds
 
 
 def create_training_split(df, ratio=0.7):

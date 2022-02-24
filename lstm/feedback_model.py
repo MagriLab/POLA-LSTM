@@ -1,11 +1,12 @@
-from idna import valid_contextj
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import time
-import tensorflow_datasets as tfds
 import tensorflow as tf
-import time
+import tensorflow_datasets as tfds
+from idna import valid_contextj
+
 from loss import loss_oloop
 
 loss_tracker = tf.keras.metrics.MeanSquaredError(name="loss")

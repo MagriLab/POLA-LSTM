@@ -1,9 +1,12 @@
-from ..closed_loop_tools import prediction_closed_loop, compute_lyapunov_time_arr
-import seaborn as sns
-import time
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+from ..closed_loop_tools import (compute_lyapunov_time_arr,
+                                 prediction_closed_loop)
 
 plt.rcParams["figure.facecolor"] = "white"
 
