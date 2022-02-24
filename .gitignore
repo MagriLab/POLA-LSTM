@@ -216,5 +216,4 @@ lorenz_data/CSV/
 logs/
 models/
 notebooks/
-
-.ipynb
+*.ipynb
