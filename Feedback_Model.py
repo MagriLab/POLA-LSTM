@@ -6,6 +6,7 @@ import time
 import tensorflow_datasets as tfds
 import tensorflow as tf
 import time
+from loss import loss_oloop
 
 loss_tracker = tf.keras.metrics.MeanSquaredError(name="loss")
 mse_metric_tracker = tf.keras.metrics.MeanSquaredError(name="mse")
@@ -25,11 +26,6 @@ class FeedBack(tf.keras.Model):
         )
         self.dense = tf.keras.layers.Dense(3)
         self.model_compile()
-
-    def custom_loss(y_true, y_pred, washout=0):
-        mse = tf.keras.losses.MeanSquaredError()
-        loss = mse(y_true[washout:, :], y_pred[washout:, :])  # (batchsize, dimensions)
-        return loss
 
     def warmup(self, inputs):
         # inputs.shape => (batch, time, features)
@@ -51,7 +47,7 @@ class FeedBack(tf.keras.Model):
         )
         optimizer = tf.keras.optimizers.Adam()
         mse_loss = tf.keras.losses.MeanSquaredError()
-        self.loss = mse_loss
+        self.loss = mse_loss  # change to custom loss
         self.metric = tf.keras.metrics.MeanSquaredError()
         self.compile(loss=self.loss, optimizer=optimizer, metrics=["mse"])
 
@@ -83,18 +79,6 @@ class FeedBack(tf.keras.Model):
             val_mse_metric_tracker,
         ]
 
-    # def loss_cloop_batch(self, batch, data_oloop, label_oloop, data_cloop, label_cloop):
-    #     with tf.GradientTape() as tape:
-    #         prediction_oloop, state = self.warmup(data_oloop)  # Forward pass
-    #         loss_oloop = self.compiled_loss(label_oloop, prediction_oloop)
-    #         prediction_cloop, state = self.warmup(data_cloop)  # Forward pass
-    #         loss_cloop = self.compiled_loss(label_cloop, prediction_cloop)
-
-    #     loss = loss_cloop + loss_oloop
-    #     gradients = tape.gradient(loss, self.trainable_variables)
-    #     self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-    #     return prediction_oloop, prediction_cloop
-
     def valid_step1(self, dataset):
         # Unpack the data
         for data, label in dataset:
@@ -106,6 +90,22 @@ class FeedBack(tf.keras.Model):
             "val_loss": val_loss_tracker.result(),
             "val_mse": val_mse_metric_tracker.result(),
         }
+
+    @tf.function
+    def train_cloop_batch(self, data_oloop, label_oloop, data_cloop, label_cloop):
+        with tf.GradientTape(persistent=True) as tape:
+            tape.watch(self.trainable_variables)
+            prediction_oloop, state = self.warmup(data_oloop)  # Forward pass open loop
+            loss_oloop = self.compiled_loss(label_oloop, prediction_oloop)
+            prediction_cloop, state = self.warmup(
+                data_cloop
+            )  # Forward pass closed loop
+            loss_cloop = self.compiled_loss(label_cloop, prediction_cloop)
+
+            loss = loss_cloop + loss_oloop
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return prediction_oloop, prediction_cloop
 
     def train_cloop(
         self, oloop_dataset, cloop_dataset, n_epochs, n_batches, val_dataset
@@ -123,23 +123,9 @@ class FeedBack(tf.keras.Model):
                     batch, :
                 ]
                 data_cloop, label_cloop = list(cloop_dataset)[batch]
-                # prediction_oloop, prediction_cloop = self.loss_cloop_batch(
-                #     batch, data_oloop, label_oloop, data_cloop, label_cloop
-                # )
-                with tf.GradientTape(persistent=True) as tape:
-                    tape.watch(self.trainable_variables)
-                    prediction_oloop, state = self.warmup(
-                        data_oloop
-                    )  # Forward pass open loop
-                    loss_oloop = self.compiled_loss(label_oloop, prediction_oloop)
-                    prediction_cloop, state = self.warmup(
-                        data_cloop
-                    )  # Forward pass closed loop
-                    loss_cloop = self.compiled_loss(label_cloop, prediction_cloop)
-
-                    loss = loss_cloop + loss_oloop
-                gradients = tape.gradient(loss, self.trainable_variables)
-                self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+                prediction_oloop, prediction_cloop = self.train_cloop_batch(
+                    data_oloop, label_oloop, data_cloop, label_cloop
+                )
 
             loss_tracker.update_state(label_oloop, prediction_oloop)
             mse_metric_tracker.update_state(label_oloop, prediction_oloop)
@@ -156,7 +142,7 @@ class FeedBack(tf.keras.Model):
             train_metrics_results.append(loss_mse_dict["mse"])
             if epoch % 2 == 0:
                 print(
-                    "Epoch {:.3f}, Loss: {:.2E},  Cloop Loss: {:.2E}, Metrics: {:.2E}, Val_Loss: {:.2E}, Val_Metrics: {:.2E}".format(
+                    "Epoch {:.1f}, Loss: {:.2E},  Cloop Loss: {:.2E}, Metrics: {:.2E}, Val_Loss: {:.2E}, Val_Metrics: {:.2E}".format(
                         epoch,
                         train_loss_results[-1],
                         train_metrics_results[-1],

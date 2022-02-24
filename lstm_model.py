@@ -14,6 +14,7 @@ from data_processing import (
     compute_lyapunov_time_arr,
     train_valid_test_split,
 )
+from loss import loss_oloop, loss_oloop_reg
 
 
 def select_random_window_with_label(df_transposed, n_windows):
@@ -67,20 +68,6 @@ def add_cloop_prediction(df_transposed, idx, predictions):
     )
     label_list = np.array([df_transposed[i + 52, :] for i in idx])
     return window_list, label_list
-
-
-def loss_oloop(y_true, y_pred, washout=10):
-    mse = tf.keras.losses.MeanSquaredError()  # reduction=tf.keras.losses.Reduction.SUM
-    loss = mse(y_true[washout:, :], y_pred[washout:, :])  # (batchsize, dimensions)
-    return loss
-
-
-def loss_oloop_reg(y_true, y_pred, washout=10):
-    mse = tf.keras.losses.MeanSquaredError()  # reduction=tf.keras.losses.Reduction.SUM
-    loss = mse(y_true[washout:, :], y_pred[washout:, :]) + 0.001 * tf.nn.l2_loss(
-        y_pred[washout:, :]
-    )  # (batchsize, dimensions)
-    return loss
 
 
 def build_open_loop_lstm(cells=100):

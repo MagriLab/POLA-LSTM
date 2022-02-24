@@ -49,7 +49,7 @@ if __name__ == "__main__":
     u0, v0, w0 = 0, 1, 1
     print("Initial conditons: ", u0, v0, w0)
     # Maximum time point and total number of time points.
-    tmax, n = 1000, 100000  # delta t = 0.005
+    tmax, n = 100, 120000  # delta t = 0.001
     print("Max T: ", tmax, " Delta t: ", tmax / n)
     print("number of time points: ", n)
     # Integrate the Lorenz equations.
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     print("Successfully solved the Lorenz equation using RK45")
     t, x, y, z = remove_transient_phase(20, t, x, y, z)
     print("Timesteps after Transient Cut off:", len(t))
-    save_data("CSV/Lorenz_trans_001_norm_100000.csv", t, x, y, z)
+    save_data("CSV/Lorenz_trans_0001_norm_100000.csv", t, x, y, z)
     # x_der, y_der, z_der = lorenz(t, (x, y, z))
     # , y_der.shape, z_der.shape)
     # save_data("CSV/Lorenz_norm_der_0005.csv", t, x_der, y_der, z_der)
