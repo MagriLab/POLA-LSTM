@@ -1,9 +1,10 @@
-import numpy as np
 import math
-from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
 import time  # pause plot
+
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
+from scipy.integrate import solve_ivp
 
 
 def solution_from_np(filename):

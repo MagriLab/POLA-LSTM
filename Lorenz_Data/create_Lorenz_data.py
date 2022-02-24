@@ -1,11 +1,12 @@
-import numpy as np
-from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
-import time  # pause plot
 import csv
 import math
-from torch import zero_
+import time  # pause plot
+
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
+from scipy.integrate import solve_ivp
+from torch import zero
 
 
 def lorenz(t, X, sigma=10, beta=2.667, rho=28):
