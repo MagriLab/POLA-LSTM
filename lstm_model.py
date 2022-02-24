@@ -52,7 +52,9 @@ def select_random_batch_with_label(df_transposed, window_size=50, batch_size=32)
     idx_start = random.randint(0, len(df_transposed) - window_size - 1)
     idx = np.arange(start=idx_start, stop=idx_start + batch_size)
     # window_list =[]
-    window_list = [df_transposed[i : i + window_size, :].reshape(1, 50, 3) for i in idx]
+    window_list = [
+        df_transposed[i : i + window_size, :].reshape(1, window_size, 3) for i in idx
+    ]
     label_list = [df_transposed[i + window_size + 1, :].reshape(1, 3) for i in idx]
     return window_list, label_list, idx
 
