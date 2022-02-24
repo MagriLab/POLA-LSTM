@@ -1,24 +1,11 @@
-import tensorflow as tf
+from ..closed_loop_tools import prediction_closed_loop, compute_lyapunov_time_arr
+import seaborn as sns
+import time
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
 plt.rcParams["figure.facecolor"] = "white"
-import time
-import tensorflow_datasets as tfds
-import seaborn as sns
-
-from data_processing import (
-    create_training_split,
-    df_training_split,
-    create_df_3d,
-    create_window_closed_loop,
-    add_new_pred,
-    compute_lyapunov_time_arr,
-    train_valid_test_split,
-)
-from lstm_model import build_open_loop_lstm, load_open_loop_lstm, prediction_closed_loop
 
 
 def plot_closed_loop_lya(
@@ -39,7 +26,7 @@ def plot_closed_loop_lya(
     fig.suptitle("Closed Loop LSTM Prediction at epoch " + str(n_epochs))
     axs[0, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[0, window_size : window_size + test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
         label="True Data",
     )
     axs[0, 0].plot(
@@ -60,7 +47,7 @@ def plot_closed_loop_lya(
     sns.kdeplot(pred_closed_loop[:, 0], vertical=True, color="tab:orange", ax=axs[0, 1])
     axs[1, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[1, window_size : window_size + test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
         label="data",
     )
     axs[1, 0].plot(
@@ -81,7 +68,7 @@ def plot_closed_loop_lya(
     sns.kdeplot(pred_closed_loop[:, 1], vertical=True, color="tab:orange", ax=axs[1, 1])
     axs[2, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[2, window_size : window_size + test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
         label="Numerical Solution",
     )
     axs[2, 0].plot(
@@ -119,9 +106,9 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     test_time_end = len(predictions)
     ax1 = fig.add_subplot(1, 2, 1, projection="3d")
     ax1.plot(
-        df_test[0, window_size : window_size + test_time_end],
-        df_test[1, window_size : window_size + test_time_end],
-        df_test[2, window_size : window_size + test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
         color="tab:blue",
         alpha=0.7,
     )
@@ -175,7 +162,7 @@ def plot_closed_loop_lya_lim(
     fig.suptitle("Closed Loop LSTM Prediction at Epoch " + str(n_epoch))
     axs[0, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[0, window_size : window_size + test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
         label="True Data",
     )
     axs[0, 0].plot(
@@ -194,7 +181,7 @@ def plot_closed_loop_lya_lim(
     sns.kdeplot(pred_closed_loop[:, 0], vertical=True, color="tab:orange", ax=axs[0, 1])
     axs[1, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[1, window_size : window_size + test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
         label="data",
     )
     axs[1, 0].plot(
@@ -213,7 +200,7 @@ def plot_closed_loop_lya_lim(
     sns.kdeplot(pred_closed_loop[:, 1], vertical=True, color="tab:orange", ax=axs[1, 1])
     axs[2, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[2, window_size : window_size + test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
         label="Numerical Solution",
     )
     axs[2, 0].plot(
@@ -252,9 +239,9 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     test_time_end = len(predictions)
     ax1 = fig.add_subplot(1, 2, 1, projection="3d")
     ax1.plot(
-        df_test[0, window_size : window_size + test_time_end],
-        df_test[1, window_size : window_size + test_time_end],
-        df_test[2, window_size : window_size + test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
         color="tab:blue",
         alpha=0.7,
     )
@@ -307,19 +294,19 @@ def plot_error_closed_loop_lya_lim(
     fig, axs = plt.subplots(3, 2, sharex=True, facecolor="white")  # , figsize=(10, 12))
     fig.suptitle("Pointwise Error of LSTM Prediction at Epoch " + str(n_epoch))
     x_error = np.abs(
-        df_test[0, window_size : window_size + test_time_end] - pred_closed_loop[:, 0]
+        df_test[0, window_size: window_size + test_time_end] - pred_closed_loop[:, 0]
     )
     y_error = np.abs(
-        df_test[1, window_size : window_size + test_time_end] - pred_closed_loop[:, 1]
+        df_test[1, window_size: window_size + test_time_end] - pred_closed_loop[:, 1]
     )
     z_error = np.abs(
-        df_test[2, window_size : window_size + test_time_end] - pred_closed_loop[:, 2]
+        df_test[2, window_size: window_size + test_time_end] - pred_closed_loop[:, 2]
     )
     axs[0, 1].plot(lyapunov_time[:test_time_end], x_error, "r", label="Error")
 
     axs[0, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[0, window_size : window_size + test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
         label="True Data",
     )
     axs[0, 0].plot(
@@ -331,7 +318,7 @@ def plot_error_closed_loop_lya_lim(
     axs[0, 0].set_ylabel("x")
     axs[1, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[1, window_size : window_size + test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
         label="data",
     )
     axs[1, 0].plot(
@@ -343,7 +330,7 @@ def plot_error_closed_loop_lya_lim(
     axs[1, 0].set_ylabel("y")
     axs[2, 0].plot(
         lyapunov_time[:test_time_end],
-        df_test[2, window_size : window_size + test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
         label="Numerical Solution",
     )
     axs[2, 0].plot(

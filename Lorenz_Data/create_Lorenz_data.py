@@ -49,7 +49,7 @@ if __name__ == "__main__":
     u0, v0, w0 = 0, 1, 1
     print("Initial conditons: ", u0, v0, w0)
     # Maximum time point and total number of time points.
-    tmax, n = 100, 120000  # delta t = 0.001
+    tmax, n = 100, 130000  # delta t = 0.001
     print("Max T: ", tmax, " Delta t: ", tmax / n)
     print("number of time points: ", n)
     # Integrate the Lorenz equations.
