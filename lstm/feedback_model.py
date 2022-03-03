@@ -7,7 +7,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from idna import valid_contextj
 
-from loss import loss_oloop
+from .loss import loss_oloop
 
 loss_tracker = tf.keras.metrics.MeanSquaredError(name="loss")
 mse_metric_tracker = tf.keras.metrics.MeanSquaredError(name="mse")
