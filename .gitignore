@@ -213,7 +213,9 @@ pip-selfcheck.json
 
 #further folders
 src/lorenz_data/CSV/
+src/here/
 logs/
 models/
 notebooks/
 *.ipynb
+src/models

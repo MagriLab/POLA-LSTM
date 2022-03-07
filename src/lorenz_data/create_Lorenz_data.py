@@ -8,7 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
 from scipy.integrate import solve_ivp
 
 
-
 def lorenz(t, X, sigma=10, beta=2.667, rho=28):
     """The Lorenz equations."""
     u, v, w = X
@@ -26,9 +25,15 @@ def normalize_dataset(data):
     print("Maximum: ", np.max(np.abs(data)))
     return data / np.max(np.abs(data))
 
+def return_norm_max(x,y,z):
+    return np.max(np.abs(x)), np.max(np.abs(y)), np.max(np.abs(z))
+
+
+
 def add_noise(data, ratio=-2):
-    scale_noise = (10**ratio) #np.mean(data) * 
+    scale_noise = (10**ratio)  # np.mean(data) *
     return data + scale_noise*np.random.normal(0, 1, len(data))
+
 
 def add_snr_noise(data, snr=20):
     noise_std = np.sqrt(np.std(data)**2/snr)
@@ -47,9 +52,9 @@ def save_data(filename, t, x, y, z):
         writer = csv.writer(f)
         # write the header
         writer.writerow(t)
-        writer.writerow(add_snr_noise(normalize_dataset(x)))
-        writer.writerow(add_snr_noise(normalize_dataset(y)))
-        writer.writerow(add_snr_noise(normalize_dataset(z)))
+        writer.writerow(x)
+        writer.writerow(y)
+        writer.writerow(z)
 
 
 if __name__ == "__main__":
@@ -59,7 +64,7 @@ if __name__ == "__main__":
     u0, v0, w0 = 0, 1, 1
     print("Initial conditons: ", u0, v0, w0)
     # Maximum time point and total number of time points.
-    tmax, n = 1000, 100000  # delta t = 0.1
+    tmax, n = 100, 10000 # delta t = 0.1
     print("Max T: ", tmax, " Delta t: ", tmax / n)
     print("number of time points: ", n)
     # Integrate the Lorenz equations.
@@ -73,9 +78,13 @@ if __name__ == "__main__":
 
     print("Maximum: ", np.max(np.abs(x)), np.max(np.abs(y)), np.max(np.abs(z)))
     print("Successfully solved the Lorenz equation using RK45")
-    t, x, y, z = remove_transient_phase(20, t, x, y, z)
+    t, x_1, y_1, z_1 = remove_transient_phase(20, t, x, y, z)
+    x_max, y_max, z_max = return_norm_max(x_1, y_1, z_1)
+    print(x_max, y_max, z_max)
     print("Timesteps after Transient Cut off:", len(t))
-    save_data("lorenz_data/CSV/Lorenz_trans_001_norm_100000_snr20.csv", t, x, y, z)
-    # x_der, y_der, z_der = lorenz(t, (x, y, z))
-    # , y_der.shape, z_der.shape)
-    # save_data("CSV/Lorenz_norm_der_0005.csv", t, x_der, y_der, z_der)
+    save_data("lorenz_data/CSV/Lorenz_trans_001_norm_10000.csv", t, x_1/x_max, y_1/y_max, z_1/z_max)
+    t = np.linspace(0, tmax, n)
+    x_der, y_der, z_der = lorenz(t, (x, y, z))
+    t, x_der, y_der, z_der = remove_transient_phase(20, t, x_der, y_der, z_der)
+    print(x_der.shape, y_der.shape, z_der.shape)
+    save_data("lorenz_data/CSV/Lorenz_trans_001_norm_10000_der.csv", t, x_der/x_max, y_der/y_max, z_der/z_max)

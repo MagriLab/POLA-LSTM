@@ -20,47 +20,35 @@ from lstm.postprocessing import plots
 from lstm.preprocessing.data_processing import (create_df_3d,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
+from lstm.utils.random_seed import reset_random_seeds
 
+reset_random_seeds()
 
-def reset_random_seeds():
-    os.environ["PYTHONHASHSEED"] = str(2)
-    tf.random.set_seed(2)
-    np.random.seed(2)
-    random.seed(2)
-
-
-# Tensorboard
-# %load_ext tensorboard
-
-# Data imports
-mydf = np.genfromtxt("lorenz_data/CSV/Lorenz_trans_001_norm_100000.csv", delimiter=",")
-time = mydf[0, :]
-mydf = mydf[1:, :]
-df_train, df_valid, df_test = df_train_valid_test_split(mydf)
-time_train, time_valid, time_test = train_valid_test_split(time)
-x_train, x_valid, x_test = train_valid_test_split(mydf[0, :])
-y_train, y_valid, y_test = train_valid_test_split(mydf[1, :])
-z_train, z_valid, z_test = train_valid_test_split(mydf[2, :])
+mydf = np.genfromtxt("lorenz_data/CSV/Lorenz_trans_001_norm_100000_snr20.csv", delimiter=",")
+df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :])
+time_train, time_valid, time_test = train_valid_test_split(mydf[0, :])
 
 # Windowing
-window_size = 10
+window_size = 100
 batch_size = 32
 cells = 10
 shuffle_buffer_size = df_train.shape[0]
 train_dataset = create_df_3d(
     df_train.transpose(), window_size, batch_size, shuffle_buffer_size
 )
+#load noise free data for validation and test data
+mydf = np.genfromtxt("lorenz_data/CSV/Lorenz_trans_001_norm_100000.csv", delimiter=",")
+df_train_cor, df_valid, df_test = df_train_valid_test_split(mydf[1:, :])
 valid_dataset = create_df_3d(df_valid.transpose(), window_size, batch_size, 1)
 test_dataset = create_df_3d(df_test.transpose(), window_size, batch_size, 1)
 
-reset_random_seeds()
 model = build_open_loop_lstm(cells)
 log_dir = (
     "models/"
     + str(window_size)
     + "_window_"
     + str(cells)
-    + "LSTM_trans/logs/fit/washout0/run_2402/t_1000_100000/"
+    + "LSTM_trans/logs/fit/washout0/t_1000_100000_snr20/"
     + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 )
 early_stop_callback = tf.keras.callbacks.EarlyStopping(
@@ -85,7 +73,7 @@ img_filepath = (
     + str(window_size)
     + "_window_"
     + str(cells)
-    + "LSTM_trans/Images/LSTM_0_washout/run_2402/t_1000_100000/"
+    + "LSTM_trans/Images/LSTM_0_washout/t_1000_100000_snr20/"
 )
 
 if not os.path.exists(img_filepath):
@@ -111,49 +99,10 @@ plots.plot_phase_space(
     window_size=window_size,
 )
 n_epochs_old = n_epochs
-model_checkpoint = img_filepath + "model/"
+model_checkpoint = img_filepath + "model/" +str(n_epochs) + '/'
 # Save the weights
 model.save_weights(model_checkpoint)
-for i in range(0, 10):
-    print("Open Loop Iteration is ", i)
-    n_epochs = n_epochs_old + 50
-    history = model.fit(
-        train_dataset,
-        epochs=n_epochs,
-        initial_epoch=n_epochs_old,
-        batch_size=32,
-        validation_data=valid_dataset,
-        callbacks=[tensorboard_callback],
-        verbose=2,
-    )
 
-    n_epochs_old = n_epochs
-    lya_filepath = img_filepath + "oloop" + str(history.params["epochs"]) + ".png"
-    predictions = plots.plot_closed_loop_lya(
-        model,
-        history.params["epochs"],
-        time_test,
-        df_test,
-        window_size=window_size,
-        n_length=500,
-        img_filepath=lya_filepath,
-    )
-    phase_filepath = (
-        img_filepath + "phase_oloop" + str(history.params["epochs"]) + ".png"
-    )
-    plots.plot_phase_space(
-        predictions,
-        history.params["epochs"],
-        df_test,
-        img_filepath=phase_filepath,
-        window_size=window_size,
-    )
-    model_checkpoint = img_filepath + "model/" + str(n_epochs) + "/"
-    # Save the weights
-    model.save_weights(model_checkpoint)
-
-
-print("--- Open Loop Training Complete ---")
 # print("--- Begin Closed Loop Training ---")
 # n_epochs_old = 0
 # # new_learning_rate = 0.0001

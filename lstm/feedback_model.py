@@ -26,8 +26,7 @@ class FeedBack(tf.keras.Model):
             self.lstm_cell, return_state=True, stateful=False, name="LSTM1"
         )
         self.dense = tf.keras.layers.Dense(3)
-        self.model_compile()
-
+        
     def warmup(self, inputs):
         # inputs.shape => (batch, time, features)
         # x.shape => (batch, lstm_units)
@@ -42,10 +41,16 @@ class FeedBack(tf.keras.Model):
         predictions.append(prediction)
         return predictions
 
+    @property
+    def some_metrics(self):
+        return [
+            loss_tracker,
+            mse_metric_tracker,
+            val_loss_tracker,
+            val_mse_metric_tracker,
+        ]
+
     def model_compile(self, patience=10):
-        early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor="val_loss", patience=patience
-        )
         optimizer = tf.keras.optimizers.Adam()
         mse_loss = tf.keras.losses.MeanSquaredError()
         self.loss = mse_loss  # change to custom loss
@@ -56,29 +61,16 @@ class FeedBack(tf.keras.Model):
     def train_step_oloop(self, data, label):
         # dataset contains ((batch, window, feature), (batch, feature))
         with tf.GradientTape() as tape:
-            prediction, state = self.warmup(data)  # Forward pass
-            # Compute the loss value
-            # (the loss function is configured in `compile()`)
+            prediction, state = self.warmup(data) 
             loss = self.compiled_loss(label, prediction)
-
-        # Compute gradients
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-        # Update weights
-        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
         # Compute our own metrics
         loss_tracker.update_state(label, prediction)
         mse_metric_tracker.update_state(label, prediction)
         return {"loss": loss_tracker.result(), "mse": mse_metric_tracker.result()}
 
-    @property
-    def some_metrics(self):
-        return [
-            loss_tracker,
-            mse_metric_tracker,
-            val_loss_tracker,
-            val_mse_metric_tracker,
-        ]
+
 
     def valid_step1(self, dataset):
         # Unpack the data
@@ -119,11 +111,9 @@ class FeedBack(tf.keras.Model):
             self.reset_states()
             epoch_loss_avg = self.loss
             epoch_metrics = self.metric
-            for batch in range(n_batches):
-                data_oloop, label_oloop = np.array(list(oloop_dataset), dtype=object)[
-                    batch, :
-                ]
-                data_cloop, label_cloop = list(cloop_dataset)[batch]
+            for oloop_Data, cloop_Data in zip(oloop_dataset, cloop_dataset):
+                data_oloop, label_oloop = oloop_Data
+                data_cloop, label_cloop = cloop_Data
                 prediction_oloop, prediction_cloop = self.train_cloop_batch(
                     data_oloop, label_oloop, data_cloop, label_cloop
                 )

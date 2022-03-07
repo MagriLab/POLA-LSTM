@@ -14,13 +14,11 @@ lorenz_dim = 3
 
 
 def build_open_loop_lstm(cells=100):
-    model = tf.keras.models.Sequential(
-        [
-            tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"),
-            tf.keras.layers.Dense(lorenz_dim, name="Dense_1"),
-        ]
-    )
-    optimizer = tf.keras.optimizers.Adam()
+    model = tf.keras.Sequential()
+    kernel_init = tf.keras.initializers.GlorotUniform(seed=1)
+    recurrent_init = tf.keras.initializers.Orthogonal(seed=1)
+    model.add(tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"))
+    model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
     model.compile(loss=loss_oloop, optimizer="adam", metrics=["mse"])
     return model
 
