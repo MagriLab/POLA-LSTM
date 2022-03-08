@@ -373,3 +373,95 @@ def plot_error_closed_loop_lya_lim(
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
 
     # plt.show()
+
+
+
+def plot_open_loop_lya(
+    model,
+    n_epochs,
+    time_test,
+    test_dataset,
+    img_filepath=None,
+    n_length=6000,
+    window_size=50,
+):
+    lyapunov_time = compute_lyapunov_time_arr(time_test, window_size=100)
+    prediction = model.predict(test_dataset)
+    test_time_end = len(prediction)
+    fig, axs = plt.subplots(3, 2, sharey=True, facecolor="white")  # , figsize=(15, 14))
+    fig.suptitle("Open Loop LSTM Prediction at epoch " + str(n_epochs))
+    axs[0, 0].plot(
+        lyapunov_time[:test_time_end],
+        test_dataset[0, window_size: window_size + test_time_end],
+        label="True Data",
+    )
+    axs[0, 0].plot(
+        lyapunov_time[:test_time_end],
+        prediction[:, 0],
+        "--",
+        label="RNN Prediction",
+    )
+    axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
+    axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
+    axs[0, 0].set_ylabel("x")
+    sns.kdeplot(
+        test_dataset[0, window_size:test_time_end],
+        vertical=True,
+        color="tab:blue",
+        ax=axs[0, 1],
+    )
+    sns.kdeplot(prediction[:, 0], vertical=True, color="tab:orange", ax=axs[0, 1])
+    axs[1, 0].plot(
+        lyapunov_time[:test_time_end],
+        test_dataset[1, window_size: window_size + test_time_end],
+        label="data",
+    )
+    axs[1, 0].plot(
+        lyapunov_time[:test_time_end],
+        prediction[:, 1],
+        "--",
+        label="RNN prediction on test data",
+    )
+    axs[1, 0].set_ylabel("y")
+    axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
+    axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
+    sns.kdeplot(
+        test_dataset[1, window_size:test_time_end],
+        vertical=True,
+        color="tab:blue",
+        ax=axs[1, 1],
+    )
+    sns.kdeplot(prediction[:, 1], vertical=True, color="tab:orange", ax=axs[1, 1])
+    axs[2, 0].plot(
+        lyapunov_time[:test_time_end],
+        test_dataset[2, window_size: window_size + test_time_end],
+        label="Numerical Solution",
+    )
+    axs[2, 0].plot(
+        lyapunov_time[:test_time_end],
+        prediction[:, 2],
+        "--",
+        label="LSTM prediction",
+    )
+    axs[2, 0].set_ylabel("z")
+    axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
+    # axs[2, 0].set_ylim(-1, 1)
+    sns.kdeplot(
+        test_dataset[2, 0:test_time_end], vertical=True, color="tab:blue", ax=axs[2, 1]
+    )
+    sns.kdeplot(prediction[:, 2], vertical=True, color="tab:orange", ax=axs[2, 1])
+    # ax3.set_xlim(5,10)
+    axs[2, 0].legend(loc="center left", bbox_to_anchor=(2.3, 2.0))
+    axs[0, 0].set_xticklabels([])
+    axs[1, 0].set_xticklabels([])
+    axs[0, 1].get_shared_x_axes().join(axs[0, 1], axs[1, 1], axs[2, 1])
+    axs[1, 1].get_shared_x_axes().join(axs[0, 1], axs[1, 1], axs[2, 1])
+    axs[2, 1].get_shared_x_axes().join(axs[0, 1], axs[1, 1], axs[2, 1])
+    axs[0, 1].set_xticklabels([])
+    axs[1, 1].set_xticklabels([])
+    if img_filepath != None:
+        fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
+        print("Open Loop prediction saved at ", img_filepath)
+    # plt.show()
+    return prediction
+
