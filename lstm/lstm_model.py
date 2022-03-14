@@ -7,7 +7,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from pathlib import Path
 
-from .loss import loss_oloop, loss_oloop_reg
+from .loss import loss_oloop, loss_oloop_reg, pi_loss
 from .postprocessing import plots
 
 lorenz_dim = 3
@@ -21,6 +21,18 @@ def build_open_loop_lstm(cells=100):
     model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
     model.compile(loss=loss_oloop, optimizer="adam", metrics=["mse"])
     return model
+
+
+def build_pi_model(cells=100):
+    model = tf.keras.Sequential()
+    kernel_init = tf.keras.initializers.GlorotUniform(seed=123)
+    recurrent_init = tf.keras.initializers.Orthogonal(seed=123)
+    model.add(tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"))
+    model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
+    optimizer = tf.keras.optimizers.Adam()
+    model.compile(optimizer=optimizer, metrics=["mse"])
+    return model
+
 
 
 class LorenzLSTM(tf.keras.Model):
