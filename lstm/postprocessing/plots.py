@@ -38,8 +38,8 @@ def plot_closed_loop_lya(
         "--",
         label="RNN Prediction",
     )
-    axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
-    axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
+    # axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
+    # axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
     axs[0, 0].set_ylabel("x")
     sns.kdeplot(
         df_test[0, window_size:test_time_end],
@@ -60,8 +60,8 @@ def plot_closed_loop_lya(
         label="RNN prediction on test data",
     )
     axs[1, 0].set_ylabel("y")
-    axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
-    axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
+    # axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
+    # axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
     sns.kdeplot(
         df_test[1, window_size:test_time_end],
         vertical=True,
@@ -81,7 +81,7 @@ def plot_closed_loop_lya(
         label="LSTM prediction",
     )
     axs[2, 0].set_ylabel("z")
-    axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
+    # axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
     # axs[2, 0].set_ylim(-1, 1)
     sns.kdeplot(
         df_test[2, 0:test_time_end], vertical=True, color="tab:blue", ax=axs[2, 1]
@@ -122,8 +122,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     # ax1.set_ylim(-1.1, 1.1)
     # ax1.set_zlim(-1.1, 1.1)
     ax1.set_title("Numerical Solution")
-    ax1.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    ax1.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax1.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax1.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
 
     ax2 = fig.add_subplot(1, 2, 2, projection="3d")
     ax2.plot(
@@ -133,8 +133,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
         color="tab:orange",
         alpha=0.7,
     )
-    ax2.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    ax2.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax2.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax2.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
     ax2.set_xlabel("x")
     ax2.set_ylabel("y")
     ax2.set_zlabel("z")
@@ -232,7 +232,7 @@ def plot_closed_loop_lya_lim(
     axs[1, 1].set_xticklabels([])
     if img_filepath != None:
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
-
+        plt.close(fig)
     # plt.show()
 
 
@@ -255,8 +255,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     # ax1.set_ylim(-1.1, 1.1)
     # ax1.set_zlim(-1.1, 1.1)
     ax1.set_title("Numerical Solution")
-    ax1.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    ax1.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax1.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax1.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
 
     ax2 = fig.add_subplot(1, 2, 2, projection="3d")
     ax2.plot(
@@ -266,8 +266,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
         color="tab:orange",
         alpha=0.7,
     )
-    ax2.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    ax2.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax2.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
+    # ax2.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
     ax2.set_xlabel("x")
     ax2.set_ylabel("y")
     ax2.set_zlabel("z")
@@ -278,7 +278,9 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     if img_filepath != None:
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
         print("Phase Space prediction saved at ", img_filepath)
+        plt.close(fig)
     # plt.show()
+
 
 
 def plot_error_closed_loop_lya_lim(
@@ -371,7 +373,7 @@ def plot_error_closed_loop_lya_lim(
     # axs[1, 1].set_xticklabels([])
     if img_filepath != None:
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
-
+        plt.close(fig)
     # plt.show()
 
 
@@ -401,8 +403,8 @@ def plot_open_loop_lya(
         "--",
         label="RNN Prediction",
     )
-    axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
-    axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
+    # axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
+    # axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
     axs[0, 0].set_ylabel("x")
     sns.kdeplot(
         test_dataset[0, window_size:test_time_end],
@@ -423,8 +425,8 @@ def plot_open_loop_lya(
         label="RNN prediction on test data",
     )
     axs[1, 0].set_ylabel("y")
-    axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
-    axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
+    # axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
+    # axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
     sns.kdeplot(
         test_dataset[1, window_size:test_time_end],
         vertical=True,
@@ -444,7 +446,7 @@ def plot_open_loop_lya(
         label="LSTM prediction",
     )
     axs[2, 0].set_ylabel("z")
-    axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
+    # axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
     # axs[2, 0].set_ylim(-1, 1)
     sns.kdeplot(
         test_dataset[2, 0:test_time_end], vertical=True, color="tab:blue", ax=axs[2, 1]
@@ -462,6 +464,7 @@ def plot_open_loop_lya(
     if img_filepath != None:
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
         print("Open Loop prediction saved at ", img_filepath)
+        plt.close(fig)
     # plt.show()
     return prediction
 
