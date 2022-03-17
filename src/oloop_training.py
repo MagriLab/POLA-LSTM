@@ -43,7 +43,7 @@ def run_lstm(args: argparse.Namespace):
     )
     log_dir = args.data_path / 'logs'
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-
+  
     current_epoch = 0
     print("--- Begin Open Loop Training ---")
     for i in range(0, args.epoch_iter):
@@ -87,8 +87,8 @@ def run_lstm(args: argparse.Namespace):
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=1)
-parser.add_argument('--epoch_steps', type=int, default=5)
-parser.add_argument('--epoch_iter', type=int, default=10)
+parser.add_argument('--epoch_steps', type=int, default=10)
+parser.add_argument('--epoch_iter', type=int, default=100)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
 parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -100,8 +100,11 @@ parser.add_argument('--l2_regularisation', type=float, default=0.0)
 parser.add_argument('--dropout', type=float, default=0.0)
 parser.add_argument('--early_stop', default=False, action='store_true')
 parser.add_argument('--early_stop_patience', type=int, default=10)
+parser.add_argument('--physics_informed', default=False, action='store_true')
+parser.add_argument('--physics_weighing', type=float, default=0.0)
 
-parser.add_argument('--normalised', default=True, action='store_true')
+
+parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=20)
 parser.add_argument('--t_end', type=int, default=1000)
@@ -119,11 +122,10 @@ parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
 parsed_args = parser.parse_args()
 
-
 yaml_config_path = parsed_args.data_path / f'config.yml'
 
 
 generate_config(yaml_config_path, parsed_args)
 
 run_lstm(parsed_args)
-# /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/venv/bin/python /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/oloop_training.py -dp ./here/ -cp lorenz_data/CSV/Lorenz_trans_001_norm_100000.csv
+# /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/venv/bin/python /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/oloop_training.py -dp ./unnorm/oloop100000/1503/ -cp lorenz_data/CSV/Lorenz_trans_001_100000.csv

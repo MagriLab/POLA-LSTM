@@ -1,6 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
+
+x_max = 19.62036351364186
+y_max = 27.31708182056948
+z_max = 48.05263683702385
+
 @tf.function
 def loss_oloop(y_true, y_pred, washout=0):
     mse = tf.keras.losses.MeanSquaredError()  # reduction=tf.keras.losses.Reduction.SUM
@@ -32,6 +37,10 @@ def backward_diff(y_pred, x_batch_train, delta_t=0.01):
     bd = (y_pred[:, :] - x_batch_train[:, -1, :])/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
     return bd[:, 0], bd[:, 1], bd[:, 2]
 
+def norm_backward_diff(y_pred, x_batch_train, delta_t=0.01):
+    bd = (y_pred[:, :] - x_batch_train[:, -1, :])/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
+    return bd[:, 0]/y_max, bd[:, 1]/z_max/x_max, bd[:, 2]/x_max/y_max
+
 
 def lorenz(pred, sigma=10, beta=2.667, rho=28):
     """ use chaotic Lorenz system to generate right hand side
@@ -54,6 +63,18 @@ def lorenz(pred, sigma=10, beta=2.667, rho=28):
     return x_t, y_t, z_t
 
 
+def norm_lorenz(pred, sigma=10, beta=2.667, rho=28):
+
+    x = pred[:, 0]
+    y = pred[:, 1]
+    z = pred[:, 2]
+
+    x_t = -sigma * (x/y_max - y/x_max)
+    y_t = rho * x/y_max/z_max - y/x_max/z_max - x * z/y_max
+    z_t = -beta * z/x_max/y_max + x * y/z_max
+    return x_t, y_t, z_t
+
+
 @tf.function
 def pi_loss(y_pred, x_batch_train, washout=0):
     """_summary_
@@ -68,7 +89,23 @@ def pi_loss(y_pred, x_batch_train, washout=0):
     mse = tf.keras.losses.MeanSquaredError()
     x_t, y_t, z_t = lorenz(y_pred)  # generate rhs of Lorenz equations
     x_fd, y_fd, z_fd = backward_diff(y_pred, x_batch_train)  # compute backward diff for all the predictions in a batch
-    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd) # compute mse for each dimension
+    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
+    return pi_loss
+
+def norm_pi_loss(y_pred, x_batch_train, washout=0):
+    """_summary_
+
+    Args:
+        y_pred (Tensor): network prediction
+        x_batch_train: one batch of training windows
+        washout (int, optional): to attenuate initialisation. Defaults to 0.
+    Returns:
+        _type_: _description_
+    """
+    mse = tf.keras.losses.MeanSquaredError()
+    x_t, y_t, z_t = norm_lorenz(y_pred)  # generate rhs of Lorenz equations
+    x_fd, y_fd, z_fd = norm_backward_diff(y_pred, x_batch_train)  # compute backward diff for all the predictions in a batch
+    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
     return pi_loss
 
 @tf.function
@@ -85,5 +122,5 @@ def bd_loss(y_pred, x_batch_train, y_batch_train, washout=0):
     mse = tf.keras.losses.MeanSquaredError()
     x_t, y_t, z_t = backward_diff(y_batch_train, x_batch_train)  # generate rhs of Lorenz equations
     x_fd, y_fd, z_fd = backward_diff(y_pred, x_batch_train)  # compute backward diff for all the predictions in a batch
-    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd) # compute mse for each dimension
+    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
     return pi_loss
