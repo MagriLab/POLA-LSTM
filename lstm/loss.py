@@ -2,9 +2,21 @@ import numpy as np
 import tensorflow as tf
 
 
-x_max = 19.62036351364186
-y_max = 27.31708182056948
-z_max = 48.05263683702385
+# def max_from_norm(total_points = 100000):
+#     global x_max, y_max, z_max
+#     if total_points == 100000:
+#         x_max = 19.62036351364186
+#         y_max = 27.31708182056948
+#         z_max = 48.05263683702385
+#     elif total_points == 10000:
+        # x_max = 19.61996107472211
+        # y_max = 27.317071267968995
+        # z_max = 48.05315303164703
+x_max = 19.619508366918392 
+y_max = 27.317051197038307
+z_max = 48.05371246231375
+
+
 
 @tf.function
 def loss_oloop(y_true, y_pred, washout=0):
@@ -92,7 +104,7 @@ def pi_loss(y_pred, x_batch_train, washout=0):
     pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
     return pi_loss
 
-def norm_pi_loss(y_pred, x_batch_train, washout=0):
+def norm_pi_loss(y_pred, x_batch_train, washout=0, total_points=10000):
     """_summary_
 
     Args:
@@ -102,6 +114,7 @@ def norm_pi_loss(y_pred, x_batch_train, washout=0):
     Returns:
         _type_: _description_
     """
+    #max_from_norm(total_points=total_points)
     mse = tf.keras.losses.MeanSquaredError()
     x_t, y_t, z_t = norm_lorenz(y_pred)  # generate rhs of Lorenz equations
     x_fd, y_fd, z_fd = norm_backward_diff(y_pred, x_batch_train)  # compute backward diff for all the predictions in a batch

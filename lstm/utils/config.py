@@ -45,6 +45,7 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config['LORENZ_DATA']['DELTA T'] = args.delta_t
     config['LORENZ_DATA']['TOTAL_N'] = args.total_n
     config['LORENZ_DATA']['WINDOW_SIZE'] = args.window_size
+    config['LORENZ_DATA']['SIGNAL TO NOISE RATIO'] = args.signal_noise_ratio
 
     with open(config_path, 'w+') as f:
         yaml.dump(config, f)

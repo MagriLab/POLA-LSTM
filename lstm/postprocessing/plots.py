@@ -11,6 +11,28 @@ from ..closed_loop_tools import (compute_lyapunov_time_arr,
 plt.rcParams["figure.facecolor"] = "white"
 
 
+def fixpoints(total_points=5000, beta=2.667, rho=28, sigma=10):
+    if total_points == 100000:
+        x_max = 19.62036351364186
+        y_max = 27.31708182056948
+        z_max = 48.05263683702385
+    elif total_points == 10000:
+        x_max = 19.61996107472211
+        y_max = 27.317071267968995
+        z_max = 48.05315303164703
+    elif total_points == 5000:
+        x_max = 19.619508366918392 
+        y_max = 27.317051197038307
+        z_max = 48.05371246231375
+    x_fix = np.sqrt(beta*(rho-1))
+    y_fix = np.sqrt(beta*(rho-1))
+    z_fix = rho-1
+    return x_fix/x_max, y_fix/y_max, z_fix/z_max
+
+
+x_fix, y_fix, z_fix = fixpoints(total_points=10000)
+
+
 def plot_closed_loop_lya(
     model,
     n_epochs,
@@ -38,8 +60,8 @@ def plot_closed_loop_lya(
         "--",
         label="RNN Prediction",
     )
-    # axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
-    # axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
+    axs[0, 0].axhline(y=x_fix, color="lightcoral", linestyle=":")
+    axs[0, 0].axhline(y=-x_fix, color="lightcoral", linestyle=":")
     axs[0, 0].set_ylabel("x")
     sns.kdeplot(
         df_test[0, window_size:test_time_end],
@@ -60,8 +82,8 @@ def plot_closed_loop_lya(
         label="RNN prediction on test data",
     )
     axs[1, 0].set_ylabel("y")
-    # axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
-    # axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
+    axs[1, 0].axhline(y=y_fix, color="lightcoral", linestyle=":")
+    axs[1, 0].axhline(y=-y_fix, color="lightcoral", linestyle=":")
     sns.kdeplot(
         df_test[1, window_size:test_time_end],
         vertical=True,
@@ -81,13 +103,12 @@ def plot_closed_loop_lya(
         label="LSTM prediction",
     )
     axs[2, 0].set_ylabel("z")
-    # axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
-    # axs[2, 0].set_ylim(-1, 1)
+    axs[2, 0].axhline(y=z_fix, color="lightcoral", linestyle=":", label="Fixpoint")
+    axs[2, 0].set_ylim(-1, 1)
     sns.kdeplot(
         df_test[2, 0:test_time_end], vertical=True, color="tab:blue", ax=axs[2, 1]
     )
     sns.kdeplot(pred_closed_loop[:, 2], vertical=True, color="tab:orange", ax=axs[2, 1])
-    # ax3.set_xlim(5,10)
     axs[2, 0].legend(loc="center left", bbox_to_anchor=(2.3, 2.0))
     axs[0, 0].set_xticklabels([])
     axs[1, 0].set_xticklabels([])
@@ -122,8 +143,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     # ax1.set_ylim(-1.1, 1.1)
     # ax1.set_zlim(-1.1, 1.1)
     ax1.set_title("Numerical Solution")
-    # ax1.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    # ax1.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    ax1.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax1.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
 
     ax2 = fig.add_subplot(1, 2, 2, projection="3d")
     ax2.plot(
@@ -133,8 +154,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
         color="tab:orange",
         alpha=0.7,
     )
-    # ax2.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    # ax2.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    ax2.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax2.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
     ax2.set_xlabel("x")
     ax2.set_ylabel("y")
     ax2.set_zlabel("z")
@@ -255,8 +276,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     # ax1.set_ylim(-1.1, 1.1)
     # ax1.set_zlim(-1.1, 1.1)
     ax1.set_title("Numerical Solution")
-    # ax1.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    # ax1.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    ax1.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax1.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
 
     ax2 = fig.add_subplot(1, 2, 2, projection="3d")
     ax2.plot(
@@ -266,8 +287,8 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
         color="tab:orange",
         alpha=0.7,
     )
-    # ax2.plot(0.43, 0.31, 0.56, "x", color="tab:red", alpha=0.7)
-    # ax2.plot(-0.43, -0.36, 0.56, "x", color="tab:red", alpha=0.7)
+    ax2.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax2.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
     ax2.set_xlabel("x")
     ax2.set_ylabel("y")
     ax2.set_zlabel("z")
@@ -280,7 +301,6 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
         print("Phase Space prediction saved at ", img_filepath)
         plt.close(fig)
     # plt.show()
-
 
 
 def plot_error_closed_loop_lya_lim(
@@ -377,7 +397,6 @@ def plot_error_closed_loop_lya_lim(
     # plt.show()
 
 
-
 def plot_open_loop_lya(
     model,
     n_epochs,
@@ -403,8 +422,8 @@ def plot_open_loop_lya(
         "--",
         label="RNN Prediction",
     )
-    # axs[0, 0].axhline(y=0.43, color="lightcoral", linestyle=":")
-    # axs[0, 0].axhline(y=-0.43, color="lightcoral", linestyle=":")
+    axs[0, 0].axhline(y=x_fix, color="lightcoral", linestyle=":")
+    axs[0, 0].axhline(y=-x_fix, color="lightcoral", linestyle=":")
     axs[0, 0].set_ylabel("x")
     sns.kdeplot(
         test_dataset[0, window_size:test_time_end],
@@ -425,8 +444,8 @@ def plot_open_loop_lya(
         label="RNN prediction on test data",
     )
     axs[1, 0].set_ylabel("y")
-    # axs[1, 0].axhline(y=0.31, color="lightcoral", linestyle=":")
-    # axs[1, 0].axhline(y=-0.31, color="lightcoral", linestyle=":")
+    axs[1, 0].axhline(y=y_fix, color="lightcoral", linestyle=":")
+    axs[1, 0].axhline(y=-y_fix, color="lightcoral", linestyle=":")
     sns.kdeplot(
         test_dataset[1, window_size:test_time_end],
         vertical=True,
@@ -446,13 +465,12 @@ def plot_open_loop_lya(
         label="LSTM prediction",
     )
     axs[2, 0].set_ylabel("z")
-    # axs[2, 0].axhline(y=0.56, color="lightcoral", linestyle=":", label="Fixpoint")
+    axs[2, 0].axhline(y=z_fix, color="lightcoral", linestyle=":", label="Fixpoint")
     # axs[2, 0].set_ylim(-1, 1)
     sns.kdeplot(
         test_dataset[2, 0:test_time_end], vertical=True, color="tab:blue", ax=axs[2, 1]
     )
     sns.kdeplot(prediction[:, 2], vertical=True, color="tab:orange", ax=axs[2, 1])
-    # ax3.set_xlim(5,10)
     axs[2, 0].legend(loc="center left", bbox_to_anchor=(2.3, 2.0))
     axs[0, 0].set_xticklabels([])
     axs[1, 0].set_xticklabels([])
@@ -467,4 +485,3 @@ def plot_open_loop_lya(
         plt.close(fig)
     # plt.show()
     return prediction
-

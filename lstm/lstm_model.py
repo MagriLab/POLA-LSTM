@@ -1,4 +1,5 @@
 import random
+from re import L
 import time
 import argparse
 import matplotlib.pyplot as plt
@@ -11,6 +12,21 @@ from .loss import loss_oloop, loss_oloop_reg, pi_loss
 from .postprocessing import plots
 
 lorenz_dim = 3
+
+
+# class GradCallback(tf.keras.callbacks.TensorBoard):
+#     def __init__(self, model_logs_directory):
+#         super(GradCallback, self).__init__(log_dir=model_logs_directory,
+#                                            histogram_freq=1, write_graph=True, update_freq='epoch', profile_batch=2)
+
+#     def on_epoch_end(self, epoch, logs={}):
+#         super().on_epoch_end(epoch, logs)
+#         model = self.model
+#         lstm_layer = model.layers[0]
+#         dense_layer = model.layers[1]
+#         with tf.GradientTape(persistent=True, watch_accessed_variables=True) as tape:
+#             tape.watch(model.trainable_weights)
+#             loss = loss_oloop(y_train, )
 
 
 def build_open_loop_lstm(cells=100):
@@ -32,7 +48,6 @@ def build_pi_model(cells=100):
     optimizer = tf.keras.optimizers.Adam()
     model.compile(optimizer=optimizer, metrics=["mse"])
     return model
-
 
 
 class LorenzLSTM(tf.keras.Model):
