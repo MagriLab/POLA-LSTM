@@ -1,33 +1,19 @@
-from pickletools import optimize
-import random
-from re import L
-import time
 import argparse
+import random
+import time
+from pathlib import Path
+from pickletools import optimize
+from re import L
+
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from pathlib import Path
 
 from .loss import loss_oloop, loss_oloop_reg, pi_loss
 from .postprocessing import plots
 
 lorenz_dim = 3
-
-
-# class GradCallback(tf.keras.callbacks.TensorBoard):
-#     def __init__(self, model_logs_directory):
-#         super(GradCallback, self).__init__(log_dir=model_logs_directory,
-#                                            histogram_freq=1, write_graph=True, update_freq='epoch', profile_batch=2)
-
-#     def on_epoch_end(self, epoch, logs={}):
-#         super().on_epoch_end(epoch, logs)
-#         model = self.model
-#         lstm_layer = model.layers[0]
-#         dense_layer = model.layers[1]
-#         with tf.GradientTape(persistent=True, watch_accessed_variables=True) as tape:
-#             tape.watch(model.trainable_weights)
-#             loss = loss_oloop(y_train, )
 
 
 def build_open_loop_lstm(cells=100):
@@ -36,8 +22,9 @@ def build_open_loop_lstm(cells=100):
     recurrent_init = tf.keras.initializers.Orthogonal(seed=1)
     model.add(tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"))
     model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=32000, decay_rate=0.75)
-    optimizer = tf.keras.optimizers.Adam(learning_rate = lr_schedule)
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=0.001, decay_steps=32000, decay_rate=0.75)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     model.compile(loss=loss_oloop, optimizer=optimizer, metrics=["mse"])
     return model
 
@@ -98,36 +85,3 @@ class LorenzLSTM(tf.keras.Model):
                     callbacks=[self.tensorboard_callback, self.early_stop_callback],
                 )
             self.current_epoch = (iteration+1)*args.epochs_steps
-
-
-def train_oloop(model, epochs, train_dataset, batch_size):
-    for epoch in range(epochs):
-        print("\nStart of epoch %d" % (epoch,))
-
-        for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-            with tf.GradientTape() as tape:
-                logits = model(
-                    x_batch_train, training=True
-                )  # Logits for this minibatch
-
-                # Compute the loss value for this minibatch.
-                loss_value = loss_oloop(y_batch_train, logits)
-            grads = tape.gradient(loss_value, model.trainable_weights)
-            model.optimizer.apply_gradients(
-                zip(grads, model.trainable_weights))
-
-            # Log every 200 batches.
-            if step % 200 == 0:
-                print(
-                    "Training loss (for one batch) at step %d: %.4f"
-                    % (step, float(loss_value))
-                )
-                print("Seen so far: %s samples" % ((step + 1) * batch_size))
-
-
-def load_open_loop_lstm(model_checkpoint):
-    # Create a new model instance
-    model = LorenzLSTM()
-    # Restore the weights
-    model.load_weights(model_checkpoint)
-    return model

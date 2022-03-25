@@ -59,7 +59,7 @@ def run_lstm(args: argparse.Namespace):
         initial_learning_rate=args.learning_rate 
         decay_steps=1000
         decay_rate=0.75
-        return initial_learning_rate * decay_rate ** (step / decay_steps) # careful here! step includes batch steps in the tf framework
+        return initial_learning_rate * decay_rate ** (step / decay_steps)
 
     @tf.function
     def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):

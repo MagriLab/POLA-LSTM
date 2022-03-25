@@ -188,6 +188,6 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
 
 run_lstm(parsed_args)
-# python oloop_training_custom_loop.py -dp models/100000/ -cp lorenz_data/CSV/100000/Lorenz_trans_001_norm_10000.csv
+# python oloop_training_custom_loop.py -dp models/100000/ -cp lorenz_data/CSV/100000/Lorenz_trans_001_norm_100000.csv
 #
 # -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/oloop100000/model/1000/weights

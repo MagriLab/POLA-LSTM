@@ -134,20 +134,20 @@ def run_lstm(args: argparse.Namespace):
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
             logs_checkpoint = filepath / "logs"
-            if not os.path.exists(logs_checkpoint):
-                os.makedirs(logs_checkpoint)
-            np.savetxt(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_tracker)
-            np.savetxt(logs_checkpoint/f"training_loss_pi.txt", train_loss_pi_tracker)
-            np.savetxt(logs_checkpoint/f"valid_loss_dd.txt", valid_loss_dd_tracker)
-            np.savetxt(logs_checkpoint/f"valid_loss_pi.txt", valid_loss_pi_tracker)
-            loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
-                                    valid_loss_dd_tracker, valid_loss_pi_tracker)
+    if not os.path.exists(logs_checkpoint):
+        os.makedirs(logs_checkpoint)
+    np.savetxt(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_tracker)
+    np.savetxt(logs_checkpoint/f"training_loss_pi.txt", train_loss_pi_tracker)
+    np.savetxt(logs_checkpoint/f"valid_loss_dd.txt", valid_loss_dd_tracker)
+    np.savetxt(logs_checkpoint/f"valid_loss_pi.txt", valid_loss_pi_tracker)
+    loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
+                            valid_loss_dd_tracker, valid_loss_pi_tracker)
 
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=500)
+parser.add_argument('--n_epochs', type=int, default=1000)
+parser.add_argument('--epoch_steps', type=int, default=10)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
@@ -161,14 +161,14 @@ parser.add_argument('--dropout', type=float, default=0.0)
 parser.add_argument('--early_stop', default=False, action='store_true')
 parser.add_argument('--early_stop_patience', type=int, default=10)
 parser.add_argument('--physics_informed', default=True, action='store_true')
-parser.add_argument('--physics_weighing', type=float, default=1)
+parser.add_argument('--physics_weighing', type=float, default=0.0)
 
 parser.add_argument('--normalised', default=True, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=20)
 parser.add_argument('--t_end', type=int, default=100)
 parser.add_argument('--delta_t', type=int, default=0.01)
-parser.add_argument('--total_n', type=float, default=8000)
+parser.add_argument('--total_n', type=float, default=98000)
 parser.add_argument('--window_size', type=int, default=100)
 parser.add_argument('--hidden_units', type=int, default=10)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
@@ -188,6 +188,6 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
 
 run_lstm(parsed_args)
-# python physics_training.py -dp /models/10000/pi-lstm/ -cp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000.csv
+# python oloop_training_custom_loop.py -dp models/100000/ -cp lorenz_data/CSV/100000/Lorenz_trans_001_norm_10000.csv
 #
 # -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/oloop100000/model/1000/weights
