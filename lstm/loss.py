@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 
-
 # def max_from_norm(total_points = 100000):
 #     global x_max, y_max, z_max
 #     if total_points == 100000:
@@ -9,13 +8,12 @@ import tensorflow as tf
 #         y_max = 27.31708182056948
 #         z_max = 48.05263683702385
 #     elif total_points == 10000:
-        # x_max = 19.61996107472211
-        # y_max = 27.317071267968995
-        # z_max = 48.05315303164703
-x_max = 19.619508366918392 
+# x_max = 19.61996107472211
+# y_max = 27.317071267968995
+# z_max = 48.05315303164703
+x_max = 19.619508366918392
 y_max = 27.317051197038307
 z_max = 48.05371246231375
-
 
 
 @tf.function
@@ -48,6 +46,7 @@ def backward_diff(y_pred, x_batch_train, delta_t=0.01):
     """
     bd = (y_pred[:, :] - x_batch_train[:, -1, :])/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
     return bd[:, 0], bd[:, 1], bd[:, 2]
+
 
 def norm_backward_diff(y_pred, x_batch_train, delta_t=0.01):
     bd = (y_pred[:, :] - x_batch_train[:, -1, :])/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
@@ -104,6 +103,7 @@ def pi_loss(y_pred, x_batch_train, washout=0):
     pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
     return pi_loss
 
+
 def norm_pi_loss(y_pred, x_batch_train, washout=0, total_points=10000):
     """_summary_
 
@@ -114,12 +114,14 @@ def norm_pi_loss(y_pred, x_batch_train, washout=0, total_points=10000):
     Returns:
         _type_: _description_
     """
-    #max_from_norm(total_points=total_points)
+    # max_from_norm(total_points=total_points)
     mse = tf.keras.losses.MeanSquaredError()
     x_t, y_t, z_t = norm_lorenz(y_pred)  # generate rhs of Lorenz equations
-    x_fd, y_fd, z_fd = norm_backward_diff(y_pred, x_batch_train)  # compute backward diff for all the predictions in a batch
+    # compute backward diff for all the predictions in a batch
+    x_fd, y_fd, z_fd = norm_backward_diff(y_pred, x_batch_train)
     pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
     return pi_loss
+
 
 @tf.function
 def bd_loss(y_pred, x_batch_train, y_batch_train, washout=0):

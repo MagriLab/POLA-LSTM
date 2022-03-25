@@ -1,4 +1,11 @@
 import sys
+sys.path.append('..')
+from lstm.utils.config import generate_config
+from lstm.preprocessing.data_processing import (create_df_3d,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.postprocessing import plots
+from lstm.lstm_model import build_open_loop_lstm
 import tensorflow_datasets as tfds
 import tensorflow as tf
 import numpy as np
@@ -11,13 +18,6 @@ import os
 import importlib
 import datetime
 import argparse
-sys.path.append('..')
-from lstm.utils.config import generate_config
-from lstm.preprocessing.data_processing import (create_df_3d,
-                                                df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.postprocessing import plots
-from lstm.lstm_model import build_open_loop_lstm
 
 plt.rcParams["figure.facecolor"] = "w"
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -27,12 +27,14 @@ def run_lstm(args: argparse.Namespace):
 
     # first: get the lorenz data ready
     lorenz_df = np.genfromtxt(args.config_path, delimiter=",")
-    time_train, time_valid, time_test = train_valid_test_split(lorenz_df[0, :], train_ratio=0.3334, valid_ratio=0.3334)
-    df_train, df_valid, df_test = df_train_valid_test_split(lorenz_df[1:, :], train_ratio=0.3334, valid_ratio=0.3334)
+    time_train, time_valid, time_test = train_valid_test_split(lorenz_df[0, :])
+    df_train, df_valid, df_test = df_train_valid_test_split(lorenz_df[1:, :])
     print(df_train.shape)
     train_dataset = create_df_3d(
         df_train.transpose(), args.window_size, args.batch_size,  df_train.shape[1]
     )
+    lorenz_df = np.genfromtxt(args.noise_free_path, delimiter=",")
+    df_train_nf, df_valid, df_test = df_train_valid_test_split(lorenz_df[1:, :])
     valid_dataset = create_df_3d(df_valid.transpose(), args.window_size, args.batch_size, 1)
     test_dataset = create_df_3d(df_test.transpose(),  args.window_size, args.batch_size, 1)
 
@@ -87,8 +89,8 @@ def run_lstm(args: argparse.Namespace):
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=1)
-parser.add_argument('--epoch_steps', type=int, default=10000)
-parser.add_argument('--epoch_iter', type=int, default=1)
+parser.add_argument('--epoch_steps', type=int, default=100)
+parser.add_argument('--epoch_iter', type=int, default=10000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
 parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -111,12 +113,12 @@ parser.add_argument('--t_end', type=int, default=100)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=8000)
 parser.add_argument('--window_size', type=int, default=100)
-parser.add_argument('--signal_noise_ratio', type=int, default=0)
+parser.add_argument('--signal_noise_ratio', type=int, default=50)
 
 # arguments to define paths
 # parser.add_argument( '--experiment_path', type=Path, required=True)
 # parser.add_argument('--input-data_path', type=Path, required=True)
-# parser.add_argument('--log-board_path', type=Path, required=True)
+parser.add_argument('-nfp', '--noise_free_path', type=Path, required=True)
 parser.add_argument('-dp', '--data_path', type=Path, required=True)
 parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
@@ -128,6 +130,7 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
 
 run_lstm(parsed_args)
-#
+#20: python oloop_noise_training.py -dp ./noise/snr_20 -cp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000_snr20.csv -nfp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000.csv
 
-#30: python oloop_training.py -dp ./10000/ -cp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000.csv
+#30: python oloop_noise_training.py -dp ./noise/snr_30 -cp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000_snr30.csv -nfp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000.csv
+#50: python oloop_noise_training.py -dp ./noise/snr_50 -cp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000_snr50.csv -nfp lorenz_data/CSV/10000/Lorenz_trans_001_norm_10000.csv
