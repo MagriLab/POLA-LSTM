@@ -70,8 +70,6 @@ def select_random_batches_with_label(
         [np.arange(start=idx_start, stop=idx_start + batch_size)
          for idx_start in idx]
     ).flatten()
-    # for i in idx_list:
-    #     print(i, len(df_transposed[i : i + 50, :]))
     window_list = [
         df_transposed[i: i + window_size,
                       :].reshape(1, window_size, lorenz_dim)
