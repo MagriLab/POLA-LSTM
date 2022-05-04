@@ -1,15 +1,4 @@
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.utils.config import generate_config
-from lstm.preprocessing.data_processing import (create_df_3d_mtm,
-                                                df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.postprocessing import plots_mtm
-from lstm.lstm_model import build_pi_model
-from lstm.lorenz import fixpoints
-from lstm.loss import loss_oloop, norm_loss_pi_many
-from lstm.closed_loop_tools_mto import append_label_to_batch
-from lstm.closed_loop_tools_mtm import append_label_to_window, split_window_label, create_test_window, prediction_closed_loop
+
 import argparse
 import datetime
 import importlib
@@ -29,6 +18,16 @@ import torch
 import seaborn as sns
 
 sys.path.append('../..')
+from lstm.utils.random_seed import reset_random_seeds
+from lstm.utils.config import generate_config
+from lstm.preprocessing.data_processing import (create_df_3d_mtm,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing import plots_mtm
+from lstm.lstm_model import build_pi_model
+from lstm.lorenz import fixpoints
+from lstm.loss import loss_oloop, norm_loss_pi_many
 
 
 plt.rcParams["figure.facecolor"] = "w"
@@ -178,7 +177,7 @@ def run_lstm(args: argparse.Namespace):
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=500)
+parser.add_argument('--epoch_steps', type=int, default=10)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
@@ -219,5 +218,5 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
 print('Physics weight', parsed_args.physics_weighing)
 run_lstm(parsed_args)
-#  python many_to_many.py -dp ../models/euler/10000-many-diff_loss/preload-pi-lstm0001/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-diff_loss/model/10000/weights
+#  python many_to_many.py -dp ../models/euler/test/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-diff_loss/model/10000/weights
 # python many_to_many.py -dp ../models/euler/10000-many-noise-80/pi-lstm-1/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans_noise_80.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-noise80/model/10000/weights
