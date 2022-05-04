@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-from ..closed_loop_tools_mtm import (compute_lyapunov_time_arr,
-                                     prediction_closed_loop)
+from ..closed_loop_tools_mtm import prediction_closed_loop
 from lstm.lorenz import fixpoints
 
 plt.rcParams["figure.facecolor"] = "white"
