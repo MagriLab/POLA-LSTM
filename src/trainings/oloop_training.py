@@ -11,7 +11,7 @@ import os
 import importlib
 import datetime
 import argparse
-sys.path.append('..')
+sys.path.append('../..')
 from lstm.utils.config import generate_config
 from lstm.preprocessing.data_processing import (create_df_3d,
                                                 df_train_valid_test_split,
@@ -19,6 +19,7 @@ from lstm.preprocessing.data_processing import (create_df_3d,
 from lstm.postprocessing import plots
 from lstm.lstm_model import build_open_loop_lstm
 
+tf.keras.backend.set_floatx('float64')
 plt.rcParams["figure.facecolor"] = "w"
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -26,7 +27,7 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 def run_lstm(args: argparse.Namespace):
 
     # first: get the lorenz data ready
-    lorenz_df = np.genfromtxt(args.config_path, delimiter=",")
+    lorenz_df = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     time_train, time_valid, time_test = train_valid_test_split(lorenz_df[0, :], train_ratio=0.3334, valid_ratio=0.3334)
     df_train, df_valid, df_test = df_train_valid_test_split(lorenz_df[1:, :], train_ratio=0.3334, valid_ratio=0.3334)
     print(df_train.shape)

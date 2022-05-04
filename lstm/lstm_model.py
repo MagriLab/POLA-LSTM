@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-from .loss import loss_oloop, loss_oloop_reg, pi_loss
+from .loss import loss_oloop, loss_oloop_l2_reg, norm_pi_loss
 from .postprocessing import plots
 
 lorenz_dim = 3
@@ -20,7 +20,7 @@ def build_open_loop_lstm(cells=100):
     model = tf.keras.Sequential()
     kernel_init = tf.keras.initializers.GlorotUniform(seed=1)
     recurrent_init = tf.keras.initializers.Orthogonal(seed=1)
-    model.add(tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"))
+    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1"))
     model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=0.001, decay_steps=32000, decay_rate=0.75)
@@ -33,7 +33,7 @@ def build_pi_model(cells=100):
     model = tf.keras.Sequential()
     kernel_init = tf.keras.initializers.GlorotUniform(seed=123)
     recurrent_init = tf.keras.initializers.Orthogonal(seed=123)
-    model.add(tf.keras.layers.LSTM(cells, activation="relu", name="LSTM_1"))
+    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1"))
     model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
     optimizer = tf.keras.optimizers.Adam()
     model.compile(optimizer=optimizer, metrics=["mse"])

@@ -19,6 +19,7 @@ import importlib
 import datetime
 import argparse
 
+tf.keras.backend.set_floatx('float64')
 plt.rcParams["figure.facecolor"] = "w"
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -33,7 +34,7 @@ def run_lstm(args: argparse.Namespace):
     train_dataset = create_df_3d(
         df_train.transpose(), args.window_size, args.batch_size,  df_train.shape[1]
     )
-    lorenz_df = np.genfromtxt(args.noise_free_path, delimiter=",")
+    lorenz_df = np.genfromtxt(args.noise_free_path, delimiter=",").astype(np.float64)
     df_train_nf, df_valid, df_test = df_train_valid_test_split(lorenz_df[1:, :])
     valid_dataset = create_df_3d(df_valid.transpose(), args.window_size, args.batch_size, 1)
     test_dataset = create_df_3d(df_test.transpose(),  args.window_size, args.batch_size, 1)

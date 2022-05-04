@@ -26,10 +26,12 @@ from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
+tf.keras.backend.set_floatx('float64')
 
 plt.rcParams["figure.facecolor"] = "w"
 
 
+tf.keras.backend.set_floatx('float64')
 def run_lstm(args: argparse.Namespace):
 
     reset_random_seeds()
@@ -38,14 +40,14 @@ def run_lstm(args: argparse.Namespace):
     if not os.path.exists(filepath / "images"):
         os.makedirs(filepath / "images")
 
-    mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float32)
+    mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :])
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, :])
 
     # Windowing
     lorenz_dim = 3
     train_dataset = create_df_3d(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
-    lorenz_df = np.genfromtxt(args.noise_free_path, delimiter=",").astype(np.float32)
+    lorenz_df = np.genfromtxt(args.noise_free_path, delimiter=",").astype(np.float64)
     df_train_nf, df_valid, df_test = df_train_valid_test_split(lorenz_df[1:, :])
     valid_dataset = create_df_3d(df_valid.transpose(), args.window_size, args.batch_size, 1)
     test_dataset = create_df_3d(df_test.transpose(),  args.window_size, args.batch_size, 1)
@@ -171,7 +173,7 @@ parser.add_argument('--dropout', type=float, default=0.0)
 parser.add_argument('--early_stop', default=False, action='store_true')
 parser.add_argument('--early_stop_patience', type=int, default=10)
 parser.add_argument('--physics_informed', default=True, action='store_true')
-parser.add_argument('--physics_weighing', type=float, default=1)
+parser.add_argument('--physics_weighing', type=float, default=0)
 
 parser.add_argument('--normalised', default=True, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)

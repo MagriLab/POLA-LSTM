@@ -1,5 +1,5 @@
 import random
-
+import einops
 import numpy as np
 import tensorflow as tf
 
@@ -120,4 +120,36 @@ def prediction_closed_loop(model, time_test, df_test, n_length, window_size=50):
         new_pred = model.predict(test_window)
         new_pred = np.array(new_pred).reshape(1, lorenz_dim)
         predictions = add_new_pred(predictions, new_pred)
+    return lyapunov_time, predictions
+
+
+def append_label_to_window(window, label):
+    return tf.concat((window, einops.rearrange(label, "i j -> 1 i j")), axis=1)
+
+
+def append_label_to_batch(batch, label):
+    return tf.concat((batch, einops.rearrange(label, "i j -> i 1 j")), axis=1)
+
+
+def split_window_label(window_label_tensor, window_size=100, batch_size=32):
+    window = window_label_tensor[:, -(window_size):, :]
+    return window
+
+
+def create_test_window(df_test, window_size=100):
+    test_window = tf.convert_to_tensor(df_test[:, :window_size].T)
+    test_window = einops.rearrange(test_window, "i j -> 1 i j")
+    return test_window
+
+
+def prediction_closed_loop(model, time_test, df_test, n_length, window_size=50):
+    lyapunov_time = compute_lyapunov_time_arr(
+        time_test, window_size=window_size)
+    predictions = np.zeros((n_length, lorenz_dim))
+    test_window = create_test_window(df_test, window_size=window_size)
+    for i in range(len(predictions)):
+        pred = model.predict(test_window)
+        test_window = split_window_label(append_label_to_window(test_window, pred))
+        predictions[i, :] = pred
+
     return lyapunov_time, predictions

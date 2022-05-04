@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-from ..closed_loop_tools import (compute_lyapunov_time_arr,
+from ..closed_loop_tools_mto import (compute_lyapunov_time_arr,
                                  prediction_closed_loop)
 
 plt.rcParams["figure.facecolor"] = "white"
@@ -483,5 +483,4 @@ def plot_open_loop_lya(
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
         print("Open Loop prediction saved at ", img_filepath)
         plt.close(fig)
-    # plt.show()
     return prediction

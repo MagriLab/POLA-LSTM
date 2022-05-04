@@ -22,6 +22,7 @@ from lstm.preprocessing.data_processing import (create_df_3d,
                                                 train_valid_test_split)
 
 
+tf.keras.backend.set_floatx('float64')
 def reset_random_seeds():
     os.environ["PYTHONHASHSEED"] = str(2)
     tf.random.set_seed(2)
@@ -30,7 +31,7 @@ def reset_random_seeds():
 
 
 # Data imports
-mydf = np.genfromtxt("Lorenz_Data/CSV/Lorenz_trans_001_norm_100000.csv", delimiter=",")
+mydf = np.genfromtxt("Lorenz_Data/CSV/Lorenz_trans_001_norm_100000.csv", delimiter=",").astype(np.float64)
 time = mydf[0, :]
 mydf = mydf[1:, :]
 df_train, df_valid, df_test = df_train_valid_test_split(mydf)

@@ -39,7 +39,7 @@ def return_idx_reoc(input_array):
 
     
 # Data imports
-mydf = np.genfromtxt("Lorenz_Data/CSV/Lorenz_trans_01_norm_100000_.csv", delimiter=",")
+mydf = np.genfromtxt("Lorenz_Data/CSV/Lorenz_trans_01_norm_100000_.csv", delimiter=",").astype(np.float64)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :])
 df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :])
 

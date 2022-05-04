@@ -1,11 +1,8 @@
 import csv
 import math
 import os
-import time  # pause plot
 
-import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # 3D plotting
 from scipy.integrate import solve_ivp
 
 
@@ -65,7 +62,7 @@ if __name__ == "__main__":
     u0, v0, w0 = 0, 1, 1
     print("Initial conditons: ", u0, v0, w0)
     # Maximum time point and total number of time points.
-    tmax, n = 50, 5000  # delta t = 0.1
+    tmax, n = 100, 10000  # delta t = 0.1
     print("Max T: ", tmax, " Delta t: ", tmax / n)
     print("number of time points: ", n)
     # Integrate the Lorenz equations.
@@ -79,12 +76,13 @@ if __name__ == "__main__":
 
     print("Maximum: ", np.max(np.abs(x)), np.max(np.abs(y)), np.max(np.abs(z)))
     print("Successfully solved the Lorenz equation using RK45")
-    t, x, y, z = remove_transient_phase(20, t, x, y, z)
+    #t, x, y, z = remove_transient_phase(20, t, x, y, z)
     x_max, y_max, z_max = return_norm_max(x, y, z)
     print(x_max, y_max, z_max)
+
     print("Timesteps after Transient Cut off:", len(t))
     # add_snr_noise(x/x_max), add_snr_noise(y/y_max), add_snr_noise(z/z_max))
-    save_data("lorenz_data/CSV/Lorenz_trans_001_norm_5000.csv", t, x/x_max, y/y_max, z/z_max)
+    # save_data("CSV/Lorenz_001_10000.csv", t, x, y, z)
     x_der, y_der, z_der = lorenz(t, (x, y, z))
     print(x_der.shape, y_der.shape, z_der.shape)
     #save_data("lorenz_data/CSV/Lorenz_trans_001_10000_der.csv", t, x_der/x_max, y_der/y_max, z_der/z_max)

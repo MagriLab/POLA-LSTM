@@ -1,0 +1,216 @@
+import os
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+from ..closed_loop_tools_mtm import (compute_lyapunov_time_arr,
+                                     prediction_closed_loop)
+from lstm.lorenz import fixpoints
+
+plt.rcParams["figure.facecolor"] = "white"
+
+x_fix, y_fix, z_fix = fixpoints(total_points=10000, unnorm=False)
+
+
+def plot_closed_loop_lya(
+    model,
+    n_epochs,
+    time_test,
+    df_test,
+    img_filepath=None,
+    n_length=6000,
+    window_size=50,
+):
+    lyapunov_time, pred_closed_loop = prediction_closed_loop(
+        model, time_test, df_test, n_length, window_size=window_size
+    )
+    test_time_end = len(pred_closed_loop)
+
+    fig, axs = plt.subplots(3, 2, sharey=True, facecolor="white")  # , figsize=(15, 14))
+    fig.suptitle("Closed Loop LSTM Prediction at epoch " + str(n_epochs))
+    axs[0, 0].plot(
+        lyapunov_time[:test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
+        label="True Data",
+    )
+    axs[0, 0].plot(
+        lyapunov_time[:test_time_end],
+        pred_closed_loop[:, 0],
+        "--",
+        label="RNN Prediction",
+    )
+    axs[0, 0].axhline(y=x_fix, color="lightcoral", linestyle=":")
+    axs[0, 0].axhline(y=-x_fix, color="lightcoral", linestyle=":")
+    axs[0, 0].set_ylabel("x")
+    sns.kdeplot(
+        df_test[0, window_size:test_time_end],
+        vertical=True,
+        color="tab:blue",
+        ax=axs[0, 1],
+    )
+    sns.kdeplot(pred_closed_loop[:, 0], vertical=True, color="tab:orange", ax=axs[0, 1])
+    axs[1, 0].plot(
+        lyapunov_time[:test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
+        label="data",
+    )
+    axs[1, 0].plot(
+        lyapunov_time[:test_time_end],
+        pred_closed_loop[:, 1],
+        "--",
+        label="RNN prediction on test data",
+    )
+    axs[1, 0].set_ylabel("y")
+    axs[1, 0].axhline(y=y_fix, color="lightcoral", linestyle=":")
+    axs[1, 0].axhline(y=-y_fix, color="lightcoral", linestyle=":")
+    sns.kdeplot(
+        df_test[1, window_size:test_time_end],
+        vertical=True,
+        color="tab:blue",
+        ax=axs[1, 1],
+    )
+    sns.kdeplot(pred_closed_loop[:, 1], vertical=True, color="tab:orange", ax=axs[1, 1])
+    axs[2, 0].plot(
+        lyapunov_time[:test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
+        label="Numerical Solution",
+    )
+    axs[2, 0].plot(
+        lyapunov_time[:test_time_end],
+        pred_closed_loop[:, 2],
+        "--",
+        label="LSTM prediction",
+    )
+    axs[2, 0].set_ylabel("z")
+    axs[2, 0].axhline(y=z_fix, color="lightcoral", linestyle=":", label="Fixpoint")
+    sns.kdeplot(
+        df_test[2, 0:test_time_end], vertical=True, color="tab:blue", ax=axs[2, 1]
+    )
+    sns.kdeplot(pred_closed_loop[:, 2], vertical=True, color="tab:orange", ax=axs[2, 1])
+    axs[2, 0].legend(loc="center left", bbox_to_anchor=(2.3, 2.0))
+    axs[0, 0].set_xticklabels([])
+    axs[1, 0].set_xticklabels([])
+    axs[0, 1].get_shared_x_axes().join(axs[0, 1], axs[1, 1], axs[2, 1])
+    axs[1, 1].get_shared_x_axes().join(axs[0, 1], axs[1, 1], axs[2, 1])
+    axs[2, 1].get_shared_x_axes().join(axs[0, 1], axs[1, 1], axs[2, 1])
+    axs[0, 1].set_xticklabels([])
+    axs[1, 1].set_xticklabels([])
+    if img_filepath != None:
+        fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
+        print("Closed Loop prediction saved at ", img_filepath)
+    return pred_closed_loop
+
+
+def plot_prediction(
+    model,
+    n_epochs,
+    time_test,
+    df_test,
+    img_filepath=None,
+    n_length=6000,
+    window_size=50
+):
+    # test_time_end = len(pred_closed_loop)
+    lyapunov_time, pred_closed_loop = prediction_closed_loop(
+        model, time_test, df_test, n_length, window_size=window_size
+    )
+    test_time_end = len(pred_closed_loop)
+    fig, axs = plt.subplots(3, 1, sharey=True, facecolor="white")  # , figsize=(15, 14))
+    rel_l2_err = np.linalg.norm(df_test[:, window_size: window_size + test_time_end].T -
+                                pred_closed_loop[: test_time_end]) / np.linalg.norm(pred_closed_loop[: test_time_end])
+    fig.suptitle("Relative L2 Error for %d LT: %.2e" % (lyapunov_time[test_time_end], rel_l2_err))
+    axs[0].plot(
+        lyapunov_time[:test_time_end],
+        df_test[0, window_size: window_size + test_time_end],
+        label="True Data",
+    )
+    axs[0].plot(
+        lyapunov_time[:test_time_end],
+        pred_closed_loop[:test_time_end, 0],
+        "--",
+        label="RNN Prediction",
+    )
+    axs[0].axhline(y=x_fix, color="lightcoral", linestyle=":")
+    axs[0].axhline(y=-x_fix, color="lightcoral", linestyle=":")
+    axs[0].set_ylabel("x")
+    axs[1].plot(
+        lyapunov_time[:test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
+        label="data",
+    )
+    axs[1].plot(
+        lyapunov_time[:test_time_end],
+        pred_closed_loop[:test_time_end, 1],
+        "--",
+        label="RNN prediction on test data",
+    )
+    axs[1].set_ylabel("y")
+    axs[1].axhline(y=y_fix, color="lightcoral", linestyle=":")
+    axs[1].axhline(y=-y_fix, color="lightcoral", linestyle=":")
+    axs[2].plot(
+        lyapunov_time[:test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
+        label="Numerical Solution",
+    )
+    axs[2].plot(
+        lyapunov_time[:test_time_end],
+        pred_closed_loop[:test_time_end, 2],
+        "--",
+        label="LSTM prediction",
+    )
+    axs[2].set_ylabel("z")
+    axs[2].axhline(y=z_fix, color="lightcoral", linestyle=":", label="Fixpoint")
+    axs[2].set_xlabel('LT')
+    axs[2].legend(loc="center left", bbox_to_anchor=(1.3, 2.0))
+    axs[0].set_xticklabels([])
+    axs[1].set_xticklabels([])
+    if img_filepath != None:
+        fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
+        print("Closed Loop prediction saved at ", img_filepath)
+    return pred_closed_loop
+
+
+def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_size=50):
+    fig = plt.figure(figsize=plt.figaspect(0.5))
+    fig.suptitle("Phase Space Comparison at Epoch " + str(n_epochs))
+    test_time_end = len(predictions)
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+    ax1.plot(
+        df_test[0, window_size: window_size + test_time_end],
+        df_test[1, window_size: window_size + test_time_end],
+        df_test[2, window_size: window_size + test_time_end],
+        color="tab:blue",
+        alpha=0.7,
+    )
+    ax1.set_xlabel("x")
+    ax1.set_ylabel("y")
+    ax1.set_zlabel("z")
+    # ax1.set_xlim(-1.1, 1.1)
+    # ax1.set_ylim(-1.1, 1.1)
+    # ax1.set_zlim(-1.1, 1.1)
+    ax1.set_title("Numerical Solution")
+    ax1.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax1.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
+    ax2.plot(
+        predictions[:, 0],
+        predictions[:, 1],
+        predictions[:, 2],
+        color="tab:orange",
+        alpha=0.7,
+    )
+    ax2.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax2.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
+    ax2.set_xlabel("x")
+    ax2.set_ylabel("y")
+    ax2.set_zlabel("z")
+    ax2.set_title("LSTM Prediction")
+    ax2.set_xlim(ax1.get_xlim())
+    ax2.set_ylim(ax1.get_ylim())
+    ax2.set_zlim(ax1.get_zlim())
+    if img_filepath != None:
+        fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
+        print("Phase Space prediction saved at ", img_filepath)
