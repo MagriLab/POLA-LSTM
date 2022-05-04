@@ -40,6 +40,17 @@ def build_pi_model(cells=100):
     return model
 
 
+def build_pi_model_mtm(cells=100):
+    model = tf.keras.Sequential()
+    kernel_init = tf.keras.initializers.GlorotUniform(seed=123)
+    recurrent_init = tf.keras.initializers.Orthogonal(seed=123)
+    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1", return_sequences=True))
+    model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
+    optimizer = tf.keras.optimizers.Adam()
+    model.compile(optimizer=optimizer, metrics=["mse"], loss=loss_oloop)
+    return model
+
+
 class LorenzLSTM(tf.keras.Model):
     def __init__(self, args: argparse.Namespace, log_board_path: Path):
         super().__init__()
