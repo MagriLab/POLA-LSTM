@@ -213,7 +213,7 @@ pip-selfcheck.json
 
 #further folders
 src/lorenz_data/CSV/
-src/here/
+src/cdv_data/CSV/
 logs/
 models/
 notebooks/

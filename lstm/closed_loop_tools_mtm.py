@@ -40,10 +40,11 @@ def create_test_window(df_test, window_size=100):
     return test_window
 
 
-def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100):
+def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100, c_lyapunov=0.90566):
+    dim=df_test.shape[0]
     lyapunov_time = compute_lyapunov_time_arr(
-        time_test, window_size=window_size)
-    predictions = np.zeros((n_length, lorenz_dim))
+        time_test, window_size=window_size, c_lyapunov=c_lyapunov)
+    predictions = np.zeros((n_length, dim))
     test_window = create_test_window(df_test, window_size=window_size)
     for i in range(len(predictions)):
         pred = model.predict(test_window)

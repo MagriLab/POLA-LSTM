@@ -109,62 +109,45 @@ def plot_prediction(
     df_test,
     img_filepath=None,
     n_length=6000,
-    window_size=50
+    window_size=50,
+    c_lyapunov=0.90566
 ):
     # test_time_end = len(pred_closed_loop)
     lyapunov_time, pred_closed_loop = prediction_closed_loop(
-        model, time_test, df_test, n_length, window_size=window_size
+        model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=c_lyapunov
     )
     test_time_end = len(pred_closed_loop)
-    fig, axs = plt.subplots(3, 1, sharey=True, facecolor="white")  # , figsize=(15, 14))
+    dim = df_test.shape[0]
+    fig, axs = plt.subplots(dim, 1, sharey=True, facecolor="white", edgecolor='k')  # , figsize=(15, 14))
     rel_l2_err = np.linalg.norm(df_test[:, window_size: window_size + test_time_end].T -
                                 pred_closed_loop[: test_time_end]) / np.linalg.norm(pred_closed_loop[: test_time_end])
     fig.suptitle("Relative L2 Error for %d LT: %.2e" % (lyapunov_time[test_time_end], rel_l2_err))
-    axs[0].plot(
+    
+    fig.subplots_adjust(hspace = .5, wspace=.001)
+
+    axs = axs.ravel()
+
+    for i in range(dim):
+        axs[i].plot(
         lyapunov_time[:test_time_end],
-        df_test[0, window_size: window_size + test_time_end],
-        label="True Data",
-    )
-    axs[0].plot(
-        lyapunov_time[:test_time_end],
-        pred_closed_loop[:test_time_end, 0],
-        "--",
-        label="RNN Prediction",
-    )
-    axs[0].axhline(y=x_fix, color="lightcoral", linestyle=":")
-    axs[0].axhline(y=-x_fix, color="lightcoral", linestyle=":")
-    axs[0].set_ylabel("x")
-    axs[1].plot(
-        lyapunov_time[:test_time_end],
-        df_test[1, window_size: window_size + test_time_end],
-        label="data",
-    )
-    axs[1].plot(
-        lyapunov_time[:test_time_end],
-        pred_closed_loop[:test_time_end, 1],
-        "--",
-        label="RNN prediction on test data",
-    )
-    axs[1].set_ylabel("y")
-    axs[1].axhline(y=y_fix, color="lightcoral", linestyle=":")
-    axs[1].axhline(y=-y_fix, color="lightcoral", linestyle=":")
-    axs[2].plot(
-        lyapunov_time[:test_time_end],
-        df_test[2, window_size: window_size + test_time_end],
+        df_test[i, window_size: window_size + test_time_end],
         label="Numerical Solution",
-    )
-    axs[2].plot(
-        lyapunov_time[:test_time_end],
-        pred_closed_loop[:test_time_end, 2],
-        "--",
-        label="LSTM prediction",
-    )
-    axs[2].set_ylabel("z")
-    axs[2].axhline(y=z_fix, color="lightcoral", linestyle=":", label="Fixpoint")
-    axs[2].set_xlabel('LT')
-    axs[2].legend(loc="center left", bbox_to_anchor=(1.3, 2.0))
-    axs[0].set_xticklabels([])
-    axs[1].set_xticklabels([])
+        )
+        axs[i].plot(
+            lyapunov_time[:test_time_end],
+            pred_closed_loop[:test_time_end, i],
+            "--",
+            label="RNN Prediction",
+        )
+        comp = "u_"+str(i+1)
+        axs[i].set_ylabel(r"$"+comp+"$")
+        if i < dim-1:
+            axs[i].set_xticklabels([])
+
+    axs[dim-1].set_xlabel('LT')
+    axs[dim-1].legend(loc="center left", bbox_to_anchor=(1.3, 2.0))
+    # axs[0].set_xticklabels([])
+    # axs[1].set_xticklabels([])
     if img_filepath != None:
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
         print("Closed Loop prediction saved at ", img_filepath)
