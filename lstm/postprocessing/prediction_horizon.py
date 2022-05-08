@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def compute_lyapunov_time_arr(time_vector, c_lyapunov=0.90566,  window_size=100):
+def compute_lyapunov_time_arr(time_vector, c_lyapunov=0.033791,  window_size=100):
     t_lyapunov = 1 / c_lyapunov
     lyapunov_time = (time_vector[window_size:] -
                      time_vector[window_size]) / t_lyapunov
@@ -40,14 +40,14 @@ def compute_pred_horizon_idx_l2(pred, num_sol, threshold=0.2, window_size=100):
             return i-1
     return pred_idx
 
-def predict_horizon_layapunov_time(pred, num_sol, time_vector, window_size=100, threshold=0.2):
+def predict_horizon_layapunov_time(pred, num_sol, time_vector, window_size=100, threshold=0.2, c_lyapunov=0.033791):
     pred_idx = compute_pred_horizon_idx(pred, num_sol, window_size=100, threshold=threshold)
-    pred_lt = compute_lyapunov_time_arr(time_vector, window_size=window_size)[pred_idx]
+    pred_lt = compute_lyapunov_time_arr(time_vector, window_size=window_size, c_lyapunov=c_lyapunov)[pred_idx]
     return pred_lt
 
-def predict_horizon_layapunov_time_l2(pred, num_sol, time_vector, window_size=100, threshold=0.2):
+def predict_horizon_layapunov_time_l2(pred, num_sol, time_vector, window_size=100, threshold=0.2, c_lyapunov=0.033791):
     pred_idx = compute_pred_horizon_idx_l2(pred, num_sol, window_size=100, threshold=threshold)
-    pred_lt = compute_lyapunov_time_arr(time_vector, window_size=window_size)[pred_idx]
+    pred_lt = compute_lyapunov_time_arr(time_vector, window_size=window_size, c_lyapunov=c_lyapunov)[pred_idx]
     return pred_lt
 
 def kl_divergence(pred, num_sol, window_size=100):
