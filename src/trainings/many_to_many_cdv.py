@@ -21,20 +21,20 @@ sys.path.append('../..')
 from lstm.cdv_equations import cdv_system_tensor
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
                                                 train_valid_test_split, create_df_nd_mtm)
-from lstm.loss import loss_oloop, norm_loss_pi_many
+
 from lstm.lstm_model import build_pi_model
 from lstm.postprocessing import plots_mtm
 from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
 from lstm.utils.config import generate_config
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.cdv_equations import cdv_system
-
+from lstm.loss import loss_oloop
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-lorenz_dim = 6
+dim = 6
 
 # x_fix, y_fix, z_fix = fixpoints(total_points=10000, unnorm=False)
 
@@ -44,7 +44,7 @@ def build_pi_model(cells=100):
     kernel_init = tf.keras.initializers.GlorotUniform(seed=123)
     recurrent_init = tf.keras.initializers.Orthogonal(seed=123)
     model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1", return_sequences=True))
-    model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
+    model.add(tf.keras.layers.Dense(dim, name="Dense_1"))
     optimizer = tf.keras.optimizers.Adam()
     model.compile(optimizer=optimizer, metrics=["mse"], loss=loss_oloop)
     return model
@@ -63,7 +63,7 @@ def run_lstm(args: argparse.Namespace):
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
     # Windowing
-    lorenz_dim = 6
+    dim = 6
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
     valid_dataset = create_df_nd_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
     test_dataset = create_df_nd_mtm(df_test.transpose(), args.window_size, args.batch_size, 1)
@@ -98,8 +98,6 @@ def run_lstm(args: argparse.Namespace):
         # print("RHS shape: ", u.shape, "Backward Diff shape:", bd.shape)
         return mse(u[:, :-1, :], bd)
 
-
-
     @tf.function
     def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
         with tf.GradientTape() as tape:
@@ -129,7 +127,7 @@ def run_lstm(args: argparse.Namespace):
     # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=args.learning_rate, decay_steps=1000, decay_rate=0.5)
     # tf.keras.backend.set_value(model.optimizer.learning_rate, lr_schedule)
 
-    for epoch in range(args.n_epochs+1):
+    for epoch in range(1, args.n_epochs+1):
         model.optimizer.learning_rate = decayed_learning_rate(epoch)
         start_time = time.time()
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
@@ -155,13 +153,13 @@ def run_lstm(args: argparse.Namespace):
         if epoch % args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
 
-            predictions = plots_mtm.plot_prediction(
+            predictions = plots_mtm.plot_cdv(
                 model,
                 epoch,
                 time_test,
                 df_test,
                 c_lyapunov=0.033791,
-                n_length=1800,
+                n_length=888,
                 window_size=args.window_size,
                 img_filepath=filepath / "images" / f"pred_{epoch}.png",
             )
@@ -181,8 +179,8 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=5000)
-parser.add_argument('--epoch_steps', type=int, default=100)
+parser.add_argument('--n_epochs', type=int, default=10000)
+parser.add_argument('--epoch_steps', type=int, default=1000)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
@@ -196,15 +194,15 @@ parser.add_argument('--dropout', type=float, default=0.0)
 parser.add_argument('--early_stop', default=False, action='store_true')
 parser.add_argument('--early_stop_patience', type=int, default=10)
 parser.add_argument('--physics_informed', default=True, action='store_true')
-parser.add_argument('--physics_weighing', type=float, default=1.0)
+parser.add_argument('--physics_weighing', type=float, default=0.0)
 
-parser.add_argument('--normalised', default=True, action='store_true')
+parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
-parser.add_argument('--t_trans', type=int, default=20)
-parser.add_argument('--t_end', type=int, default=100)
+parser.add_argument('--t_trans', type=int, default=750)
+parser.add_argument('--t_end', type=int, default=5750)
 parser.add_argument('--delta_t', type=int, default=0.1)
-parser.add_argument('--total_n', type=float, default=17500)
-parser.add_argument('--window_size', type=int, default=100)
+parser.add_argument('--total_n', type=float, default=57500)
+parser.add_argument('--window_size', type=int, default=50)
 parser.add_argument('--hidden_units', type=int, default=10)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 # arguments to define paths
@@ -223,6 +221,4 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
 print('Physics weight', parsed_args.physics_weighing)
 run_lstm(parsed_args)
-#  python many_to_many.py -dp ../models/euler/test/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-diff_loss/model/10000/weights
-# python many_to_many.py -dp ../models/euler/10000-many-noise-80/pi-lstm-1/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans_noise_80.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-noise80/model/10000/weights
-# python many_to_many_cdv.py -dp ../models/cdv/test-17500-pi1/ -cp ../cdv_data/CSV/euler_17500_trans.csv
+# python many_to_many_cdv.py -dp ../models/cdv/57500-100/ -cp ../cdv_data/CSV/euler_57500_01_trans.csv
