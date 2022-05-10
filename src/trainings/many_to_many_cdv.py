@@ -13,6 +13,18 @@ import einops
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  # Disable first GPU
+  tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+  logical_devices = tf.config.list_logical_devices('GPU')
+  print('Number of used GPUs: ', len(logical_devices))
+  # Logical device was not created for first GPU
+  assert len(logical_devices) == len(physical_devices) - 1
+except:
+  # Invalid device or cannot modify virtual devices once initialized.
+  pass
+tf.debugging.set_log_device_placement(True)
 import tensorflow_datasets as tfds
 import torch
 import seaborn as sns
@@ -129,7 +141,7 @@ def run_lstm(args: argparse.Namespace):
     # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=args.learning_rate, decay_steps=1000, decay_rate=0.5)
     # tf.keras.backend.set_value(model.optimizer.learning_rate, lr_schedule)
 
-    for epoch in range(args.n_epochs+1):
+    for epoch in range(1, args.n_epochs+1):
         model.optimizer.learning_rate = decayed_learning_rate(epoch)
         start_time = time.time()
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
@@ -182,7 +194,7 @@ def run_lstm(args: argparse.Namespace):
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=5000)
-parser.add_argument('--epoch_steps', type=int, default=100)
+parser.add_argument('--epoch_steps', type=int, default=5000)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
