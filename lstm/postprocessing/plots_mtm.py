@@ -122,16 +122,16 @@ def plot_prediction(
     rel_l2_err = np.linalg.norm(df_test[:, window_size: window_size + test_time_end].T -
                                 pred_closed_loop[: test_time_end]) / np.linalg.norm(pred_closed_loop[: test_time_end])
     fig.suptitle("Relative L2 Error for %d LT: %.2e" % (lyapunov_time[test_time_end], rel_l2_err))
-    
-    fig.subplots_adjust(hspace = .5, wspace=.001)
+
+    fig.subplots_adjust(hspace=.5, wspace=.001)
 
     axs = axs.ravel()
 
     for i in range(dim):
         axs[i].plot(
-        lyapunov_time[:test_time_end],
-        df_test[i, window_size: window_size + test_time_end],
-        label="Numerical Solution",
+            lyapunov_time[:test_time_end],
+            df_test[i, window_size: window_size + test_time_end],
+            label="Numerical Solution",
         )
         axs[i].plot(
             lyapunov_time[:test_time_end],
@@ -152,6 +152,48 @@ def plot_prediction(
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
         print("Closed Loop prediction saved at ", img_filepath)
     return pred_closed_loop
+
+
+def plot_cdv(
+    model,
+    n_epochs,
+    time_test,
+    df_test,
+    img_filepath=None,
+    n_length=6000,
+    window_size=50,
+    c_lyapunov=0.033791
+):
+
+    lyapunov_time, pred_closed_loop = prediction_closed_loop(
+        model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=c_lyapunov
+    )
+    rel_l2_err = np.linalg.norm(df_test[:, window_size: window_size + n_length].T -
+                            pred_closed_loop[: n_length]) / np.linalg.norm(pred_closed_loop[: n_length])
+    fig, axs = plt.subplots(2,1, facecolor='w', edgecolor='k', sharey=True, sharex=True)
+    fig.subplots_adjust(hspace = .5, wspace=.001)
+    axs = axs.ravel()
+    color = plt.cm.tab10(np.linspace(0, 1, 10))
+    for i in range(0, 3):
+        axs[0].plot(lyapunov_time[:n_length], df_test[i, window_size:window_size+n_length], label='$u'+str(i+1)+'$', c=color[i]) # (U/np.max(np.abs(U), axis=0))[cutoff:, i])
+        axs[0].plot(lyapunov_time[:n_length], (pred_closed_loop.T)[i, :n_length], ':', c=color[i])  # (U/np.max(np.abs(U), axis=0))[cutoff:, i])
+
+    for i in range(3, 6):
+        axs[1].plot(lyapunov_time[:n_length], df_test[i, window_size:window_size+n_length], label='$u'+str(i+1)+'$', c=color[i])
+        axs[1].plot(lyapunov_time[:n_length], (pred_closed_loop.T)[i, :n_length], ':', c=color[i]) 
+    axs[1].set_xlabel('LT')
+    axs[0].legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
+    axs[1].legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
+
+    axs[0].set_title("Relative L2 Error for %.1f LT: %.2e" % (lyapunov_time[n_length], rel_l2_err))
+    fig.suptitle('Network Prediction at Epoch '+str(n_epochs))
+
+    if img_filepath != None:
+        fig.savefig(img_filepath, dpi=120, facecolor="w", bbox_inches="tight")
+        plt.close()
+    print("Prediction saved at ", img_filepath)
+    return pred_closed_loop
+
 
 
 def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_size=50):
