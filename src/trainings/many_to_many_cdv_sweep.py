@@ -101,7 +101,7 @@ def run_lstm():
     valid_dataset = create_df_nd_mtm(df_valid.transpose(), parsed_args.window_size, parsed_args.batch_size, 1)
     test_dataset = create_df_nd_mtm(df_test.transpose(), parsed_args.window_size, parsed_args.batch_size, 1)
 
-    model = build_pi_model(parsed_args.n_cells)
+    model = build_pi_model(parsed_args.hidden_units)
     # model.load_weights(parsed_args.input_data_path)
 
     def decayed_learning_rate(step, initial_learning_rate=None):
@@ -297,5 +297,5 @@ wandb.agent(sweep_id, function=run_lstm, count=10)
 print('Physics weight', parsed_args.physics_weighing)
 yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
-# python many_to_many_cdv_sweep.py -dp ../models/cdv/sweep_Test/ -cp ../cdv_data/CSV/euler_17500_trans.csv
+# python many_to_many_cdv_sweep.py  -cp ../cdv_data/CSV/euler_17500_trans.csv
 # python many_to_many_cdv.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_17500_trans.csv
