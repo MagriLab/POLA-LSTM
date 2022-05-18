@@ -217,3 +217,5 @@ models/
 notebooks/
 *.ipynb
 src/models
+
+wandb/
