@@ -6,7 +6,7 @@ import numpy as np
 import seaborn as sns
 
 from ..closed_loop_tools_mto import (compute_lyapunov_time_arr,
-                                 prediction_closed_loop)
+                                     prediction_closed_loop)
 
 plt.rcParams["figure.facecolor"] = "white"
 
@@ -21,7 +21,7 @@ def fixpoints(total_points=5000, beta=2.667, rho=28, sigma=10):
         y_max = 27.317071267968995
         z_max = 48.05315303164703
     elif total_points == 5000:
-        x_max = 19.619508366918392 
+        x_max = 19.619508366918392
         y_max = 27.317051197038307
         z_max = 48.05371246231375
     x_fix = np.sqrt(beta*(rho-1))
