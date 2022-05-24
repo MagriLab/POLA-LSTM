@@ -1,4 +1,5 @@
 import os
+ 
 import tensorflow as tf
 
 
@@ -26,4 +27,3 @@ def tensorflow_shutup():
 
     except ImportError:
         pass
-tensorflow_shutup()

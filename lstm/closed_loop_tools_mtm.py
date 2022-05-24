@@ -1,9 +1,8 @@
 import random
+
 import einops
 import numpy as np
 import tensorflow as tf
-
-lorenz_dim = 3
 
 
 def compute_lyapunov_time_arr(time_vector, c_lyapunov=0.90566, window_size=50):
@@ -29,7 +28,7 @@ def append_label_to_window(window, label):
     return tf.concat((window, corr_label), axis=1)
 
 
-def split_window_label(window_label_tensor, window_size=100, batch_size=32):
+def split_window_label(window_label_tensor, window_size=100):
     window = window_label_tensor[:, -(window_size):, :]
     return window
 
@@ -41,7 +40,7 @@ def create_test_window(df_test, window_size=100):
 
 
 def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100, c_lyapunov=0.90566):
-    dim=df_test.shape[0]
+    dim = df_test.shape[0]
     lyapunov_time = compute_lyapunov_time_arr(
         time_test, window_size=window_size, c_lyapunov=c_lyapunov)
     predictions = np.zeros((n_length, dim))
@@ -49,5 +48,5 @@ def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100,
     for i in range(len(predictions)):
         pred = model.predict(test_window)
         predictions[i, :] = pred[0, -1, :]
-        test_window = split_window_label(append_label_to_window(test_window, pred))
+        test_window = split_window_label(append_label_to_window(test_window, pred), window_size=window_size)
     return lyapunov_time, predictions

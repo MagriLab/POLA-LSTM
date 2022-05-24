@@ -4,9 +4,9 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from lstm.lorenz import fixpoints
 
 from ..closed_loop_tools_mtm import prediction_closed_loop
-from lstm.lorenz import fixpoints
 
 plt.rcParams["figure.facecolor"] = "white"
 
@@ -169,18 +169,23 @@ def plot_cdv(
         model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=c_lyapunov
     )
     rel_l2_err = np.linalg.norm(df_test[:, window_size: window_size + n_length].T -
-                            pred_closed_loop[: n_length]) / np.linalg.norm(pred_closed_loop[: n_length])
-    fig, axs = plt.subplots(2,1, facecolor='w', edgecolor='k', sharey=True, sharex=True)
-    fig.subplots_adjust(hspace = .5, wspace=.001)
+                                pred_closed_loop[: n_length]) / np.linalg.norm(pred_closed_loop[: n_length])
+    fig, axs = plt.subplots(2, 1, facecolor='w', edgecolor='k', sharey=True, sharex=True)
+    fig.subplots_adjust(hspace=.5, wspace=.001)
     axs = axs.ravel()
     color = plt.cm.tab10(np.linspace(0, 1, 10))
     for i in range(0, 3):
-        axs[0].plot(lyapunov_time[:n_length], df_test[i, window_size:window_size+n_length], label='$u'+str(i+1)+'$', c=color[i]) # (U/np.max(np.abs(U), axis=0))[cutoff:, i])
-        axs[0].plot(lyapunov_time[:n_length], (pred_closed_loop.T)[i, :n_length], ':', c=color[i])  # (U/np.max(np.abs(U), axis=0))[cutoff:, i])
+        axs[0].plot(lyapunov_time[:n_length], df_test[i, window_size:window_size+n_length],
+                    label='$u'+str(i+1)+'$', c=color[i])  # (U/np.max(np.abs(U), axis=0))[cutoff:, i])
+        axs[0].plot(lyapunov_time[:n_length], (pred_closed_loop.T)[i, :n_length],
+                    ':', c=color[i])  # (U/np.max(np.abs(U), axis=0))[cutoff:, i])
 
     for i in range(3, 6):
-        axs[1].plot(lyapunov_time[:n_length], df_test[i, window_size:window_size+n_length], label='$u'+str(i+1)+'$', c=color[i])
-        axs[1].plot(lyapunov_time[:n_length], (pred_closed_loop.T)[i, :n_length], ':', c=color[i]) 
+        axs[1].plot(
+            lyapunov_time[: n_length],
+            df_test[i, window_size: window_size + n_length],
+            label='$u' + str(i + 1) + '$', c=color[i])
+        axs[1].plot(lyapunov_time[:n_length], (pred_closed_loop.T)[i, :n_length], ':', c=color[i])
     axs[1].set_xlabel('LT')
     axs[0].legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
     axs[1].legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
@@ -193,7 +198,6 @@ def plot_cdv(
         plt.close()
     print("Prediction saved at ", img_filepath)
     return pred_closed_loop
-
 
 
 def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_size=50):

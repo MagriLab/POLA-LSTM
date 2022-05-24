@@ -12,23 +12,22 @@ from pathlib import Path
 import einops
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import torch
-import seaborn as sns
 
 sys.path.append('../..')
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.utils.config import generate_config
+from lstm.lorenz import fixpoints
+from lstm.loss import loss_oloop, norm_loss_pi_many
+from lstm.lstm_model import build_pi_model
+from lstm.postprocessing import plots_mtm
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
 from lstm.preprocessing.data_processing import (create_df_3d_mtm,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.postprocessing import plots_mtm
-from lstm.lstm_model import build_pi_model
-from lstm.lorenz import fixpoints
-from lstm.loss import loss_oloop, norm_loss_pi_many
-
+from lstm.utils.config import generate_config
+from lstm.utils.random_seed import reset_random_seeds
 
 plt.rcParams["figure.facecolor"] = "w"
 

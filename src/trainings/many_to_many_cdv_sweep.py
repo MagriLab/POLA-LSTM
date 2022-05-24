@@ -12,41 +12,42 @@ from pathlib import Path
 import einops
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import torch
-import seaborn as sns
 import wandb
-from wandb.keras import WandbCallback
-
 wandb.login()
 
-sys.path.append('../..')
-from lstm.cdv_equations import cdv_system_tensor
-from lstm.preprocessing.data_processing import (df_train_valid_test_split,
-                                                train_valid_test_split, create_df_nd_mtm)
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
-  # Disable first GPU
-  tf.config.set_visible_devices(physical_devices[0:], 'GPU')
-  logical_devices = tf.config.list_logical_devices('GPU')
-  print('Number of used GPUs: ', len(logical_devices))
-  # Logical device was not created for first GPU
-  assert len(logical_devices) == len(physical_devices) - 1
+    # Disable first GPU
+    tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+    logical_devices = tf.config.list_logical_devices('GPU')
+    print('Number of used GPUs: ', len(logical_devices))
+    # Logical device was not created for first GPU
+    assert len(logical_devices) == len(physical_devices) - 1
 except:
-  # Invalid device or cannot modify virtual devices once initialized.
-  pass
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
 tf.debugging.set_log_device_placement(True)
-from lstm.lstm_model import build_pi_model
-from lstm.postprocessing import plots_mtm
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.utils.config import generate_config
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.cdv_equations import cdv_system
-from lstm.loss import loss_oloop
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
+sys.path.append('../..')
+from lstm.cdv_equations import cdv_system, cdv_system_tensor
+from lstm.loss import loss_oloop
+from lstm.lstm_model import build_pi_model
+from lstm.postprocessing import plots_mtm
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.preprocessing.data_processing import (create_df_nd_mtm,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.utils.config import generate_config
+from lstm.utils.random_seed import reset_random_seeds
+from wandb.keras import WandbCallback
+
+
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 dim = 6
@@ -65,28 +66,27 @@ def build_pi_model(cells=100):
     return model
 
 
-
 def run_lstm():
     reset_random_seeds()
     config_defaults = {
-              "learning_rate": 0.001,
-              "batch_size": 32,
-              "window_size": 100,
-              "physics_weighing": 0.0,
-              'hidden_units': 10
-              }
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "window_size": 100,
+        "physics_weighing": 0.0,
+        'hidden_units': 10
+    }
     # Initialize wandb with a sample project name
     wand = wandb.init(config=config_defaults)
 
-    parsed_args.learning_rate=wandb.config.learning_rate
-    parsed_args.batch_size=wandb.config.batch_size
-    parsed_args.window_size=wandb.config.window_size
-    parsed_args.hidden_units=wandb.config.hidden_units
-    parsed_args.physics_weighing=wandb.config.physics_weighing
+    parsed_args.learning_rate = wandb.config.learning_rate
+    parsed_args.batch_size = wandb.config.batch_size
+    parsed_args.window_size = wandb.config.window_size
+    parsed_args.hidden_units = wandb.config.hidden_units
+    parsed_args.physics_weighing = wandb.config.physics_weighing
     print("WANDB Name", wand.name)
     print('Learning rate: ', wandb.config.learning_rate, parsed_args.learning_rate)
     datapath = Path("../models/cdv/sweep_Test/")
-    filepath = datapath/ str(wand.name)
+    filepath = datapath / str(wand.name)
 
     if not os.path.exists(filepath / "images"):
         os.makedirs(filepath / "images")
@@ -97,7 +97,8 @@ def run_lstm():
 
     # Windowing
     dim = 6
-    train_dataset = create_df_nd_mtm(df_train.transpose(), parsed_args.window_size, parsed_args.batch_size, df_train.shape[0])
+    train_dataset = create_df_nd_mtm(df_train.transpose(), parsed_args.window_size,
+                                     parsed_args.batch_size, df_train.shape[0])
     valid_dataset = create_df_nd_mtm(df_valid.transpose(), parsed_args.window_size, parsed_args.batch_size, 1)
     test_dataset = create_df_nd_mtm(df_test.transpose(), parsed_args.window_size, parsed_args.batch_size, 1)
 
@@ -184,14 +185,14 @@ def run_lstm():
               (valid_loss_dd / val_step, valid_loss_pi / val_step))
 
         wandb.log({'epochs': epoch,
-        'train_dd_loss': float(loss_dd),
-        'train_physics_loss': float(loss_pi), 
-        'valid_dd_loss': float(valid_loss_dd/val_step),
-        'valid_physics_loss':float( valid_loss_pi/val_step)})
+                   'train_dd_loss': float(loss_dd),
+                   'train_physics_loss': float(loss_pi),
+                   'valid_dd_loss': float(valid_loss_dd/val_step),
+                   'valid_physics_loss': float(valid_loss_pi/val_step)})
 
         if epoch % parsed_args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-            
+
             predictions = plots_mtm.plot_cdv(
                 model,
                 epoch,
@@ -203,16 +204,16 @@ def run_lstm():
                 img_filepath=filepath / "images" / f"pred_{epoch}.png",
             )
 
-            n_length=len(predictions)
+            n_length = len(predictions)
             rel_l2_err = np.linalg.norm(df_test[:, parsed_args.window_size: parsed_args.window_size + n_length].T -
-            predictions[: n_length]) / np.linalg.norm(predictions[: n_length])
+                                        predictions[: n_length]) / np.linalg.norm(predictions[: n_length])
             wandb.log({'epochs': epoch,
-            'dd train loss': float(loss_dd),
-            'dd physics loss': float(loss_pi), 
-            'val_loss': float(valid_loss_dd/val_step),
-            'val_physics_loss':float( valid_loss_pi/val_step), 
-            'rel_l2_err':float(rel_l2_err)}
-            )
+                       'dd train loss': float(loss_dd),
+                       'dd physics loss': float(loss_pi),
+                       'val_loss': float(valid_loss_dd/val_step),
+                       'val_physics_loss': float(valid_loss_pi/val_step),
+                       'rel_l2_err': float(rel_l2_err)}
+                      )
 
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
@@ -266,28 +267,28 @@ parsed_args = parser.parse_args()
 
 
 sweep_config = {
-  'method': 'random', 
-  'metric': {
-      'name': 'valid_dd_loss',
-      'goal': 'minimize'
-  },
-  'parameters': {
-      'batch_size': {
-          'values': [32, 64, 128, 256]
-      },
-      'learning_rate':{
-          'values': [0.01, 0.005, 0.001]
-      },
-      'window_size':{
-          'values': [25, 50, 100, 200, 300]
-      },
-      'hidden_units':{
-          'values': [5, 10, 25, 50]
-      },
-      'physics_weighing':{
-          'values': [0, 1, 0.1, 0.01, 0.001]
-      }
-  }
+    'method': 'random',
+    'metric': {
+        'name': 'valid_dd_loss',
+        'goal': 'minimize'
+    },
+    'parameters': {
+        'batch_size': {
+            'values': [32, 64, 128, 256]
+        },
+        'learning_rate': {
+            'values': [0.01, 0.005, 0.001]
+        },
+        'window_size': {
+            'values': [25, 50, 100, 200, 300]
+        },
+        'hidden_units': {
+            'values': [5, 10, 25, 50]
+        },
+        'physics_weighing': {
+            'values': [0, 1, 0.1, 0.01, 0.001]
+        }
+    }
 }
 
 sweep_id = wandb.sweep(sweep_config, project="CDV-17500")

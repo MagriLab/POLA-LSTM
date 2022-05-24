@@ -12,47 +12,44 @@ from pathlib import Path
 import einops
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import torch
-import seaborn as sns
 import wandb
-from wandb.keras import WandbCallback
 
 wandb.login()
-
-sys.path.append('../..')
-from lstm.cdv_equations import cdv_system_tensor
-from lstm.preprocessing.data_processing import (df_train_valid_test_split,
-                                                train_valid_test_split, create_df_nd_mtm)
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
-  # Disable first GPU
-  tf.config.set_visible_devices(physical_devices[0], 'GPU')
-  logical_devices = tf.config.list_logical_devices('GPU')
-  print('Number of used GPUs: ', len(logical_devices))
-  # Logical device was not created for first GPU
-  assert len(logical_devices) == len(physical_devices) - 1
+    # Disable first GPU
+    tf.config.set_visible_devices(physical_devices[0], 'GPU')
+    logical_devices = tf.config.list_logical_devices('GPU')
+    print('Number of used GPUs: ', len(logical_devices))
+    # Logical device was not created for first GPU
+    assert len(logical_devices) == len(physical_devices) - 1
 except:
-  # Invalid device or cannot modify virtual devices once initialized.
-  pass
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
 tf.debugging.set_log_device_placement(True)
-from lstm.lstm_model import build_pi_model
-from lstm.postprocessing import plots_mtm
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.utils.config import generate_config
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.cdv_equations import cdv_system
-from lstm.loss import loss_oloop
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
+sys.path.append('../..')
+from lstm.cdv_equations import cdv_system, cdv_system_tensor
+from lstm.loss import loss_oloop
+from lstm.lstm_model import build_pi_model
+from lstm.postprocessing import plots_mtm
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.preprocessing.data_processing import (create_df_nd_mtm,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.utils.config import generate_config
+from lstm.utils.random_seed import reset_random_seeds
+from wandb.keras import WandbCallback
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
 dim = 6
-
-# x_fix, y_fix, z_fix = fixpoints(total_points=10000, unnorm=False)
-
 
 def build_pi_model(cells=100):
     model = tf.keras.Sequential()
@@ -98,11 +95,11 @@ def run_lstm(args: argparse.Namespace):
         epoch_start = len(train_loss_dd_tracker) + 1
         print("Model loaded, previous epochs:", epoch_start)
     else:
-        train_loss_dd_tracker = np.array([])#
+        train_loss_dd_tracker = np.array([])
         train_loss_pi_tracker = np.array([])
         valid_loss_dd_tracker = np.array([])
         valid_loss_pi_tracker = np.array([])
-        epoch_start=1
+        epoch_start = 1
 
     def decayed_learning_rate(step, initial_learning_rate=None):
         decay_steps = 1000
@@ -153,7 +150,6 @@ def run_lstm(args: argparse.Namespace):
         # two_step_pred = model(new_batch, training=False)
         loss_pi = norm_loss_pi_many(val_logit, norm=normalised)
         return loss_dd, loss_pi
-
 
     for epoch in range(epoch_start, args.n_epochs+epoch_start):
         model.optimizer.learning_rate = decayed_learning_rate(epoch, initial_learning_rate=args.learning_rate)
@@ -250,5 +246,3 @@ run_lstm(parsed_args)
 
 # python many_to_many_cdv.py -dp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/super-sweep-2/ -cp ../cdv_data/CSV/euler_17500_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/super-sweep-2/model/5000
 # python many_to_many_cdv.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_17500_trans.csv
-
-
