@@ -267,36 +267,36 @@ parsed_args = parser.parse_args()
 
 
 sweep_config = {
-    'method': 'random',
+    'method': 'grid',
     'metric': {
         'name': 'valid_dd_loss',
         'goal': 'minimize'
     },
     'parameters': {
         'batch_size': {
-            'values': [32, 64, 128, 256]
+            'values': [128]
         },
         'learning_rate': {
-            'values': [0.01, 0.005, 0.001]
+            'values': [0.001]
         },
         'window_size': {
-            'values': [25, 50, 100, 200, 300]
+            'values': [100]
         },
         'hidden_units': {
-            'values': [5, 10, 25, 50]
+            'values': [10]
         },
         'physics_weighing': {
-            'values': [0, 1, 0.1, 0.01, 0.001]
+            'values': [0, 1, 0.1, 0.01]
         }
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project="CDV-17500")
+sweep_id = wandb.sweep(sweep_config, project="CDV-27500-lambda")
 wandb.agent(sweep_id, function=run_lstm, count=10)
 
 
 print('Physics weight', parsed_args.physics_weighing)
 yaml_config_path = parsed_args.data_path / f'config.yml'
 generate_config(yaml_config_path, parsed_args)
-# python many_to_many_cdv_sweep.py  -cp ../cdv_data/CSV/euler_17500_trans.csv
+# python many_to_many_cdv_sweep.py  -cp ../cdv_data/CSV/euler_27500_trans.csv
 # python many_to_many_cdv.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_17500_trans.csv
