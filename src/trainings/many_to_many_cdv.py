@@ -1,4 +1,15 @@
 
+from wandb.keras import WandbCallback
+from lstm.utils.random_seed import reset_random_seeds
+from lstm.utils.config import generate_config
+from lstm.preprocessing.data_processing import (create_df_nd_mtm,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing import plots_mtm
+from lstm.lstm_model import build_pi_model
+from lstm.loss import loss_oloop
+from lstm.cdv_equations import cdv_system, cdv_system_tensor
 import argparse
 import datetime
 import importlib
@@ -35,32 +46,25 @@ plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
 sys.path.append('../..')
-from lstm.cdv_equations import cdv_system, cdv_system_tensor
-from lstm.loss import loss_oloop
-from lstm.lstm_model import build_pi_model
-from lstm.postprocessing import plots_mtm
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.preprocessing.data_processing import (create_df_nd_mtm,
-                                                df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.utils.config import generate_config
-from lstm.utils.random_seed import reset_random_seeds
-from wandb.keras import WandbCallback
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 dim = 6
 
+
 def build_pi_model(cells=100):
     model = tf.keras.Sequential()
     kernel_init = tf.keras.initializers.GlorotUniform(seed=123)
     recurrent_init = tf.keras.initializers.Orthogonal(seed=123)
-    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1", return_sequences=True))
+    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1", return_sequences=True,
+              kernel_initializer=kernel_init, recurrent_initializer=recurrent_init))
     model.add(tf.keras.layers.Dense(dim, name="Dense_1"))
     optimizer = tf.keras.optimizers.Adam()
-    model.compile(optimizer=optimizer, metrics=["mse"], loss=loss_oloop)
+    model.compile(optimizer=optimizer)
     return model
 
+
+, metrics=["mse"], loss=loss_oloop
 
 def run_lstm(args: argparse.Namespace):
 
