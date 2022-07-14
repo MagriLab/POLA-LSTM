@@ -24,7 +24,7 @@ from lstm.lstm_model import build_pi_model
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
                                                 train_valid_test_split)
 from lstm.utils.supress_tf_warning import tensorflow_shutup
-
+from lstm.closed_loop_tools_mtm import compute_lyapunov_time_arr
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
@@ -92,7 +92,7 @@ model = build_pi_model(cell_dim, dim=dim)
 model.load_weights(model_path + "model/" + str(epochs) + "/weights").expect_partial()
 n_length = window_size+50
 lyapunov_time, prediction = prediction_closed_loop(
-    model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=0.9
+    model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=0.02
 )
 print("--- Model successfully loaded and configured ---")
 test_window = create_test_window(df_test, window_size=window_size)
@@ -100,9 +100,10 @@ N_units = 10
 dt = 0.1  # time step
 t_lyap = 0.02**(-1)
 norm_time = 1
-N = 10000
+N_lyap    = int(t_lyap/dt)
+N = 500*N_lyap
 
-Ntransient = int(N/10)
+Ntransient = window_size
 N_test = N - Ntransient
 print('N', N, 'Ntran', Ntransient, 'N_test', N_test)
 Ttot = np.arange(int(N_test/norm_time)) * dt * norm_time
@@ -157,6 +158,10 @@ for i in np.arange(Ntransient, N):
 
         if i % 100 == 0:
             print('Inside closed loop i=', i, '; time passed in s: ', time.time()-start_time)
+
 LEs = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print('Total time: ', time.time()-start_time)
 print('Lyapunov exponents: ', LEs[-1])
+np.savetxt(model_path+'lyapunov_exp_'+str(N_test)+'.txt', LEs[-1])
+print('LEs saved at', model_path+'lyapunov_exp_'+str(N_test)+'.txt')
+

@@ -217,6 +217,7 @@ models/
 notebooks/
 *.ipynb
 src/models
+CSV/
 <<<<<<< HEAD
 wandb/
 =======
