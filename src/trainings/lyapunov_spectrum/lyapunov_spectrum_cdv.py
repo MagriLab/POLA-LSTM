@@ -8,8 +8,7 @@ import numpy as np
 import scipy
 import tensorflow as tf
 sys.path.append('../../../')
-from lstm.closed_loop_tools_mtm import (compute_lyapunov_time_arr,
-                                        create_test_window,
+from lstm.closed_loop_tools_mtm import (create_test_window,
                                         prediction_closed_loop)
 from lstm.lstm_model import build_pi_model
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
@@ -154,6 +153,6 @@ for i in np.arange(Ntransient, N):
 LEs = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print('Total time: ', time.time()-start_time)
 print('Lyapunov exponents: ', LEs[-1])
-np.savetxt(model_path+'lyapunov_exp_'+str(N_test)+'.txt', LEs[-1])
+np.savetxt(model_path+'lyapunov_exp_'+str(N_test)+'.txt', LEs)
 print('LEs saved at', model_path+'lyapunov_exp_'+str(N_test)+'.txt')
 
