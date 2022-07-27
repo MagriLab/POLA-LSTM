@@ -95,3 +95,9 @@ def generate_config_sweep(config_path: Path, args: argparse.Namespace) -> None:
 
     with open(config_path, 'w+') as f:
         yaml.dump(config, f)
+
+
+def load_config_to_dict(model_path):
+    with open(model_path+"config.yml", 'r') as stream:
+        dict_loaded = yaml.safe_load(stream)
+    return dict_loaded

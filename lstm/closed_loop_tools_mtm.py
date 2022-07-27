@@ -50,3 +50,23 @@ def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100,
         predictions[i, :] = pred[0, -1, :]
         test_window = split_window_label(append_label_to_window(test_window, pred), window_size=window_size)
     return lyapunov_time, predictions
+
+def lstm_step(window_input, h, c, model, i, dim=3):
+    if i > 100:
+        window_input = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
+                                  0]) + model.layers[1].get_weights()[1], shape=(1, dim))
+    z = tf.keras.backend.dot(window_input, model.layers[0].cell.kernel)
+    z += tf.keras.backend.dot(h, model.layers[0].cell.recurrent_kernel)
+    z = tf.keras.backend.bias_add(z, model.layers[0].cell.bias)
+
+    z0, z1, z2, z3 = tf.split(z, 4, axis=1)
+
+    i = tf.sigmoid(z0)
+    f = tf.sigmoid(z1)
+    c_new = f * c + i * tf.tanh(z2)
+    o = tf.sigmoid(z3)
+
+    h_new = o * tf.tanh(c_new)
+
+    out = tf.matmul(h_new, model.layers[1].get_weights()[0]) + model.layers[1].get_weights()[1]
+    return out, h_new, c_new
