@@ -191,8 +191,8 @@ lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print(f'Total time: {time.time()-start_time}')
 print(f'Final Lyapunov exponents: {lyapunov_exp[-1]}')
 
-np.savetxt('{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
-print('lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
+np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
+print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
 
 # Create plot and directly save it
 lyapunov_exp_loaded= lyapunov_exp
