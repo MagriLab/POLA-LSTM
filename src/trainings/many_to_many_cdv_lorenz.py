@@ -1,106 +1,91 @@
 
-from wandb.keras import WandbCallback
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.utils.config import generate_config
-from lstm.preprocessing.data_processing import (create_df_nd_mtm,
-                                                df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.postprocessing import plots_mtm
-from lstm.lstm_model import build_pi_model
-from lstm.loss import loss_oloop
-from lstm.cdv_equations import cdv_system, cdv_system_tensor
 import argparse
-import datetime
-import importlib
+
 import os
-import random
 import sys
 import time
 import warnings
 from pathlib import Path
 
-import einops
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import tensorflow as tf
-import tensorflow_datasets as tfds
-import torch
 import wandb
+# wandb.login()
 
-wandb.login()
 physical_devices = tf.config.list_physical_devices('GPU')
-try:
-    # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[0], 'GPU')
-    logical_devices = tf.config.list_logical_devices('GPU')
-    print('Number of used GPUs: ', len(logical_devices))
-    # Logical device was not created for first GPU
-    assert len(logical_devices) == len(physical_devices) - 1
-except:
-    # Invalid device or cannot modify virtual devices once initialized.
-    pass
+# try:
+#     # Disable first GPU
+#     tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+#     logical_devices = tf.config.list_logical_devices('GPU')
+#     print('Number of used GPUs: ', len(logical_devices))
+#     # Logical device was not created for first GPU
+#     assert len(logical_devices) == len(physical_devices) - 1
+# except:
+#     # Invalid device or cannot modify virtual devices once initialized.
+#     pass
 tf.debugging.set_log_device_placement(True)
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
 sys.path.append('../..')
+from lstm.cdv_equations import cdv_system_tensor
+from lstm.loss import loss_oloop
+from lstm.lstm_model import build_pi_model
+from lstm.postprocessing import plots_mtm
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.preprocessing.data_processing import (create_df_nd_mtm,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.utils.config import generate_config
+from lstm.utils.random_seed import reset_random_seeds
+from wandb.keras import WandbCallback
+
+
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+dim = 3
+x_fix, y_fix, z_fix = fixpoints(total_points=10000, unnorm=False)
 
-dim = 6
 
-
-def build_pi_model(cells=100):
-    model = tf.keras.Sequential()
-    kernel_init = tf.keras.initializers.GlorotUniform(seed=123)
-    recurrent_init = tf.keras.initializers.Orthogonal(seed=123)
-    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1", return_sequences=True,
-              kernel_initializer=kernel_init, recurrent_initializer=recurrent_init))
-    model.add(tf.keras.layers.Dense(dim, name="Dense_1"))
-    optimizer = tf.keras.optimizers.Adam()
-    model.compile(optimizer=optimizer)
-    return model
-
-def run_lstm(args: argparse.Namespace):
-
+def run_lstm():
     reset_random_seeds()
+    config_defaults = {
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "window_size": 100,
+        "physics_weighing": 0.0,
+        'hidden_units': 10
+    }
+    # Initialize wandb with a sample project name
+    wand = wandb.init(config=config_defaults)
 
-    filepath = args.data_path
-    logs_checkpoint = filepath / "logs"
+    parsed_args.learning_rate = wandb.config.learning_rate
+    parsed_args.batch_size = wandb.config.batch_size
+    parsed_args.window_size = wandb.config.window_size
+    parsed_args.hidden_units = wandb.config.hidden_units
+    parsed_args.physics_weighing = wandb.config.physics_weighing
+    print("WANDB Name", wand.name)
+    print('Learning rate: ', wandb.config.learning_rate, parsed_args.learning_rate)
+    datapath = Path("../models/lorenz/sweep_Test/")
+    filepath = datapath / str(wand.name)
+
     if not os.path.exists(filepath / "images"):
         os.makedirs(filepath / "images")
-    if not os.path.exists(logs_checkpoint):
-        os.makedirs(logs_checkpoint)
 
-    mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
+    mydf = np.genfromtxt(parsed_args.config_path, delimiter=",").astype(np.float64)
     df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
     # Windowing
-    dim = 6
-    train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
-    valid_dataset = create_df_nd_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
-    test_dataset = create_df_nd_mtm(df_test.transpose(), args.window_size, args.batch_size, 1)
+    dim = 3
+    train_dataset = create_df_nd_mtm(df_train.transpose(), parsed_args.window_size,
+                                     parsed_args.batch_size, df_train.shape[0])
+    valid_dataset = create_df_nd_mtm(df_valid.transpose(), parsed_args.window_size, parsed_args.batch_size, 1)
+    test_dataset = create_df_nd_mtm(df_test.transpose(), parsed_args.window_size, parsed_args.batch_size, 1)
 
-    model = build_pi_model(args.n_cells)
-    print("--- Model build --- ")
-    if load_model:
-        model.load_weights(args.input_data_path).expect_partial()
-        print("--- Model loaded --- ")
-        train_loss_dd_tracker = np.loadtxt(logs_checkpoint / f"training_loss_dd.txt")
-        train_loss_pi_tracker = np.array(logs_checkpoint/f"training_loss_pi.txt")
-        valid_loss_dd_tracker = np.array(logs_checkpoint/f"valid_loss_dd.txt")
-        valid_loss_pi_tracker = np.array(logs_checkpoint/f"valid_loss_pi.txt")
-        epoch_start = len(train_loss_dd_tracker) + 1
-        print("Model loaded, previous epochs:", epoch_start)
-    else:
-        train_loss_dd_tracker = np.array([])
-        train_loss_pi_tracker = np.array([])
-        valid_loss_dd_tracker = np.array([])
-        valid_loss_pi_tracker = np.array([])
-        epoch_start = 1
+    model = build_pi_model(parsed_args.hidden_units)
+    # model.load_weights(parsed_args.input_data_path)
 
     def decayed_learning_rate(step, initial_learning_rate=None):
         decay_steps = 1000
@@ -109,11 +94,10 @@ def run_lstm(args: argparse.Namespace):
             initial_learning_rate == 0.001
         return initial_learning_rate * decay_rate ** (step / decay_steps)
 
-    @tf.function
     def norm_loss_pi_many(y_pred, washout=0, total_points=10000, norm=True):
         """_summary_
 
-        Args:
+        parsed_args:
             y_pred (Tensor): network prediction
             x_batch_train: one batch of training windows
             washout (int, optional): to attenuate initialisation. Defaults to 0.
@@ -152,12 +136,19 @@ def run_lstm(args: argparse.Namespace):
         loss_pi = norm_loss_pi_many(val_logit, norm=normalised)
         return loss_dd, loss_pi
 
-    for epoch in range(epoch_start, args.n_epochs+epoch_start):
-        model.optimizer.learning_rate = decayed_learning_rate(epoch, initial_learning_rate=args.learning_rate)
+    train_loss_dd_tracker = np.array([])
+    train_loss_pi_tracker = np.array([])
+    valid_loss_dd_tracker = np.array([])
+    valid_loss_pi_tracker = np.array([])
+    # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=parsed_args.learning_rate, decay_steps=1000, decay_rate=0.5)
+    # tf.keras.backend.set_value(model.optimizer.learning_rate, lr_schedule)
+
+    for epoch in range(1, parsed_args.n_epochs+1):
+        model.optimizer.learning_rate = decayed_learning_rate(epoch, initial_learning_rate=parsed_args.learning_rate)
         start_time = time.time()
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
             loss_dd, loss_pi = train_step_pi(x_batch_train, y_batch_train,
-                                             weight=args.physics_weighing, normalised=args.normalised)
+                                             weight=parsed_args.physics_weighing, normalised=parsed_args.normalised)
         train_loss_dd_tracker = np.append(train_loss_dd_tracker, loss_dd)
         train_loss_pi_tracker = np.append(train_loss_pi_tracker, loss_pi)
 
@@ -175,7 +166,13 @@ def run_lstm(args: argparse.Namespace):
         print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" %
               (valid_loss_dd / val_step, valid_loss_pi / val_step))
 
-        if epoch % args.epoch_steps == 0:
+        wandb.log({'epochs': epoch,
+                   'train_dd_loss': float(loss_dd),
+                   'train_physics_loss': float(loss_pi),
+                   'valid_dd_loss': float(valid_loss_dd/val_step),
+                   'valid_physics_loss': float(valid_loss_pi/val_step)})
+
+        if epoch % parsed_args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
 
             predictions = plots_mtm.plot_cdv(
@@ -185,13 +182,26 @@ def run_lstm(args: argparse.Namespace):
                 df_test,
                 c_lyapunov=0.033791,
                 n_length=888,
-                window_size=args.window_size,
+                window_size=parsed_args.window_size,
                 img_filepath=filepath / "images" / f"pred_{epoch}.png",
             )
 
+            n_length = len(predictions)
+            rel_l2_err = np.linalg.norm(df_test[:, parsed_args.window_size: parsed_args.window_size + n_length].T -
+                                        predictions[: n_length]) / np.linalg.norm(predictions[: n_length])
+            wandb.log({'epochs': epoch,
+                       'dd train loss': float(loss_dd),
+                       'dd physics loss': float(loss_pi),
+                       'val_loss': float(valid_loss_dd/val_step),
+                       'val_physics_loss': float(valid_loss_pi/val_step),
+                       'rel_l2_err': float(rel_l2_err)}
+                      )
+
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
-
+    logs_checkpoint = filepath / "logs"
+    if not os.path.exists(logs_checkpoint):
+        os.makedirs(logs_checkpoint)
     np.savetxt(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_tracker)
     np.savetxt(logs_checkpoint/f"training_loss_pi.txt", train_loss_pi_tracker)
     np.savetxt(logs_checkpoint/f"valid_loss_dd.txt", valid_loss_dd_tracker)
@@ -202,10 +212,10 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=10)
+parser.add_argument('--n_epochs', type=int, default=10)
+parser.add_argument('--epoch_steps', type=int, default=1000)
 parser.add_argument('--epoch_iter', type=int, default=10)
-parser.add_argument('--batch_size', type=int, default=256)
+parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=10)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
@@ -215,35 +225,60 @@ parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--l2_regularisation', type=float, default=0)
 parser.add_argument('--dropout', type=float, default=0.0)
 parser.add_argument('--early_stop', default=False, action='store_true')
-parser.add_argument('--early_stop_patience', type=int, default=0)
+parser.add_argument('--early_stop_patience', type=int, default=10)
 parser.add_argument('--physics_informed', default=True, action='store_true')
-parser.add_argument('--physics_weighing', type=float, default=1.0)
-
+parser.add_argument('--physics_weighing', type=float, default=0.0)
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=750)
-parser.add_argument('--t_end', type=int, default=1750)
+parser.add_argument('--t_end', type=int, default=5750)
 parser.add_argument('--delta_t', type=int, default=0.1)
-parser.add_argument('--total_n', type=float, default=17500)
+parser.add_argument('--total_n', type=float, default=57500)
 parser.add_argument('--window_size', type=int, default=50)
 parser.add_argument('--hidden_units', type=int, default=10)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 # arguments to define paths
 # parser.add_argument( '--experiment_path', type=Path, required=True)
-parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
+# parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
 # parser.add_argument('--log-board_path', type=Path, required=True)
+
 parser.add_argument('-dp', '--data_path', type=Path, required=True)
 parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
 parsed_args = parser.parse_args()
 
 
-yaml_config_path = parsed_args.data_path / f'config.yml'
+sweep_config = {
+    'method': 'grid',
+    'metric': {
+        'name': 'valid_dd_loss',
+        'goal': 'minimize'
+    },
+    'parameters': {
+        'batch_size': {
+            'values': [128]
+        },
+        'learning_rate': {
+            'values': [0.001]
+        },
+        'window_size': {
+            'values': [100]
+        },
+        'hidden_units': {
+            'values': [10]
+        },
+        'physics_weighing': {
+            'values': [0, 1, 0.1, 0.01]
+        }
+    }
+}
 
-load_model = True
-generate_config(yaml_config_path, parsed_args)
+sweep_id = wandb.sweep(sweep_config, project="CDV-27500-lambda")
+wandb.agent(sweep_id, function=run_lstm, count=10)
+
+
 print('Physics weight', parsed_args.physics_weighing)
-run_lstm(parsed_args)
-
-# python many_to_many_cdv.py -dp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/super-sweep-2/ -cp ../cdv_data/CSV/euler_17500_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/super-sweep-2/model/5000
+yaml_config_path = parsed_args.data_path / f'config.yml'
+generate_config(yaml_config_path, parsed_args)
+# python many_to_many_cdv_sweep.py -dp ../models/cdv/27500-lambda-physics/ -cp ../cdv_data/CSV/euler_27500_trans.csv
 # python many_to_many_cdv.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_17500_trans.csv
