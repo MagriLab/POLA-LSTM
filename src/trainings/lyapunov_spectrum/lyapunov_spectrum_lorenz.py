@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 import warnings
@@ -60,7 +59,7 @@ def lstm_step_comb(u_t, h, c, model, idx, dim=3):
     return u_t, h_new, c_new
 
 
-def step_and_jac(u_t_in, h, c, model, idx):
+def step_and_jac(u_t_in, h, c, model, idx, dim):
     """advances LSTM by one step and computes the Jacobian
 
     Args:
@@ -81,7 +80,7 @@ def step_and_jac(u_t_in, h, c, model, idx):
         tape_h.watch(h)
         with tf.GradientTape(persistent=True) as tape_c:
             tape_c.watch(c)
-            u_t_out, h_new, c_new = lstm_step_comb(u_t_in, h, c, model, i, dim=3)
+            u_t_out, h_new, c_new = lstm_step_comb(u_t_in, h, c, model, idx, dim=dim)
             Jac_c_new_c = tf.reshape(tape_c.jacobian(c_new, c), shape=(cell_dim, cell_dim))
             Jac_h_new_c = tf.reshape(tape_c.jacobian(h_new, c), shape=(cell_dim, cell_dim))
         Jac_h_new_h = tf.reshape(tape_h.jacobian(h_new, h), shape=(cell_dim, cell_dim))
@@ -153,12 +152,12 @@ start_time = time.time()
 # prepare h,c and c from first window
 for i in range(1, window_size+1):
     u_t = test_window[:, i-1, :]
-    u_t, h, c = lstm_step_comb(u_t, h, c, model, i)
+    u_t, h, c = lstm_step_comb(u_t, h, c, model, i, dim)
     pred[i, :] = u_t
 
 # compute delta on transient
 for i in range(window_size, Ntransient):
-    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i)
+    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, dim)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
 
@@ -170,7 +169,7 @@ for i in range(window_size, Ntransient):
 
 for i in range(Ntransient, N):
     indx = i-Ntransient
-    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i)
+    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, dim)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
     if i % norm_time == 0:
@@ -185,7 +184,7 @@ for i in range(Ntransient, N):
             print(f'Inside closed loop i = {i}')
             if indx != 0:
                 lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (dim, 1)).T
-                # print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
+                print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
 
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print(f'Total time: {time.time()-start_time}')
@@ -214,11 +213,11 @@ for i in range(len(lyapunov_exp_num)):
 plt.plot(
     lyapunov_time[: len(lyapunov_exp_loaded)],
     np.ones(shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[2],
-    'k--', label="Euler lyapunov_exp")
+    'k--', label=f"Euler lyapunov_exp")
 plt.xlabel('LT')
 plt.xlim(0, lyapunov_time[len(lyapunov_exp_loaded)]+10)
 plt.legend(loc="center left", bbox_to_anchor=(1, 0.75))
-plt.title("Lyapunov Exponents of the Lorenz System")
+plt.title(f"Lyapunov Exponents of the Lorenz System")
 plt.savefig(f'{model_path}{N_test}_test_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
 print(f'Plot saved at {model_path}{N_test}_test_lyapunox_exp.png')
 plt.close()
