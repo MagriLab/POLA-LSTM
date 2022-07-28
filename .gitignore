@@ -213,14 +213,9 @@ pip-selfcheck.json
 
 #further folders
 logs/
-models/
 notebooks/
 *.ipynb
-src/models
+src/models/
 CSV/
-<<<<<<< HEAD
 wandb/
-=======
-
-wandb/
->>>>>>> 6fe654526af6aa4b2c75b2da7466bd5a6a65a4a7
+models/
