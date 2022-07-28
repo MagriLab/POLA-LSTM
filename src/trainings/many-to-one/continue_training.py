@@ -2,21 +2,17 @@ import os
 import sys
 import warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
-
 import matplotlib.pyplot as plt
 plt.rcParams["figure.facecolor"] = "w"
 import datetime
-import importlib
 import random
 import time
-
 import numpy as np
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
 sys.path.append('../')
-import lstm.postprocessing.plots
-from lstm.lstm_model import build_open_loop_lstm, load_open_loop_lstm
+from lstm import lstm_model
+from lstm.postprocessing import plots
 from lstm.preprocessing.data_processing import (create_df_3d,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
@@ -36,9 +32,6 @@ time = mydf[0, :]
 mydf = mydf[1:, :]
 df_train, df_valid, df_test = df_train_valid_test_split(mydf)
 time_train, time_valid, time_test = train_valid_test_split(time)
-x_train, x_valid, x_test = train_valid_test_split(mydf[0, :])
-y_train, y_valid, y_test = train_valid_test_split(mydf[1, :])
-z_train, z_valid, z_test = train_valid_test_split(mydf[2, :])
 
 # Windowing
 window_size = 100

@@ -114,14 +114,14 @@ model = load_model(model_path, epochs, model_dict, dim=dim)
 # Compare this prediction with the LE prediction
 n_length = 2*window_size+1
 lyapunov_time, prediction = prediction_closed_loop(
-    model, time_test, df_train, n_length, window_size=window_size, c_lyapunov=0.9
+    model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=0.9
 )
 
 # Set up parameters for LE computation
 t_lyap = 0.9**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
-N = 2*N_lyap
+N = 11*N_lyap
 Ntransient = max(int(N/10), window_size+2)
 N_test = N - Ntransient
 print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
@@ -140,7 +140,7 @@ q, r = qr_factorization(delta)
 delta = q[:, :dim]
 
 # initialize model and test window
-test_window = create_test_window(df_train, window_size=window_size)
+test_window = create_test_window(df_test, window_size=window_size)
 u_t = test_window[:, 0, :]
 h = tf.Variable(model.layers[0].get_initial_state(test_window)[0], trainable=False)
 c = tf.Variable(model.layers[0].get_initial_state(test_window)[1], trainable=False)
@@ -218,12 +218,12 @@ plt.xlabel('LT')
 plt.xlim(0, lyapunov_time[len(lyapunov_exp_loaded)]+10)
 plt.legend(loc="center left", bbox_to_anchor=(1, 0.75))
 plt.title(f"Lyapunov Exponents of the Lorenz System")
-plt.savefig(f'{model_path}{N_test}_test_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
-print(f'Plot saved at {model_path}{N_test}_test_lyapunox_exp.png')
+plt.savefig(f'{model_path}{N_test}_dftest_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+print(f'Plot saved at {model_path}{N_test}_dftest_lyapunox_exp.png')
 plt.close()
 
 
 plt.plot(np.arange(0, len(pred)), pred)
 plt.plot(np.arange(window_size, window_size + len(prediction)), prediction, 'k:')
-plt.plot(np.arange(0, len(pred)), df_train.T[window_size:window_size+len(pred), :], '--')
+plt.plot(np.arange(0, len(pred)), df_test.T[window_size:window_size+len(pred), :], '--')
 plt.show()

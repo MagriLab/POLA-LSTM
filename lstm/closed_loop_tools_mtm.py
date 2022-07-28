@@ -1,5 +1,3 @@
-import random
-
 import einops
 import numpy as np
 import tensorflow as tf
@@ -50,6 +48,7 @@ def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100,
         predictions[i, :] = pred[0, -1, :]
         test_window = split_window_label(append_label_to_window(test_window, pred), window_size=window_size)
     return lyapunov_time, predictions
+
 
 def lstm_step(window_input, h, c, model, i, dim=3):
     if i > 100:

@@ -1,20 +1,12 @@
 import argparse
-import datetime
-import importlib
 import os
-import random
 import sys
 import time
 import warnings
 from pathlib import Path
-
-import einops
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import tensorflow_datasets as tfds
-import torch
-import seaborn as sns
 
 sys.path.append('../..')
 
@@ -29,7 +21,7 @@ from lstm.lstm_model import build_pi_model
 from lstm.lorenz import fixpoints
 from lstm.loss import loss_oloop, norm_loss_pi_many
 from lstm.closed_loop_tools_mto import append_label_to_batch
-from lstm.closed_loop_tools_mtm import append_label_to_window, split_window_label, create_test_window, prediction_closed_loop
+from lstm.closed_loop_tools_mtm import split_window_label
 
 plt.rcParams["figure.facecolor"] = "w"
 
@@ -65,10 +57,8 @@ def run_lstm(args: argparse.Namespace):
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.3334, valid_ratio=0.3334)
 
     # Windowing
-    lorenz_dim = 3
     train_dataset = create_df_3d_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
     valid_dataset = create_df_3d_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
-    test_dataset = create_df_3d_mtm(df_test.transpose(), args.window_size, args.batch_size, 1)
 
     model = build_pi_model(args.n_cells)
     model.load_weights(args.input_data_path)

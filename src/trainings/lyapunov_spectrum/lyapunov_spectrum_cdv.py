@@ -7,16 +7,16 @@ import numpy as np
 import scipy
 import tensorflow as tf
 sys.path.append('../../../')
+from lstm.utils.config import load_config_to_dict
+from lstm.utils.create_paths import make_img_filepath
+from lstm.utils.supress_tf_warning import tensorflow_shutup
+from lstm.utils.qr_decomp import qr_factorization
+from lstm.preprocessing.data_processing import (df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.lstm_model import load_model
 from lstm.closed_loop_tools_mtm import (compute_lyapunov_time_arr,
                                         create_test_window,
                                         prediction_closed_loop)
-from lstm.lstm_model import load_model
-from lstm.preprocessing.data_processing import (df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.utils.qr_decomp import qr_factorization
-from lstm.utils.supress_tf_warning import tensorflow_shutup
-from lstm.utils.create_paths import make_img_filepath
-from lstm.utils.config import load_config_to_dict
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
@@ -92,11 +92,12 @@ def step_and_jac(u_t_in, h, c, model, idx, dim):
     return Jac, u_t_out, h_new, c_new
 
 
-mydf = np.genfromtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/cdv_data/CSV/euler_17500_trans.csv', delimiter=",").astype(np.float64)
+mydf = np.genfromtxt(
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/cdv_data/CSV/euler_17500_trans.csv', delimiter=",").astype(np.float64)
 df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
-model_path=f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/good-sweep-6/'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/good-sweep-6/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
@@ -181,7 +182,7 @@ for i in range(Ntransient, N):
             print(f'Inside closed loop i = {i}')
             if indx != 0:
                 lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (dim, 1)).T
-                # print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
+                print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
 
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print(f'Total time: {time.time()-start_time}')
@@ -191,19 +192,19 @@ np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
 print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
 
 # Create plot and directly save it
-lyapunov_exp_loaded= lyapunov_exp
-lyapunov_exp_num= np.array([ 0.02482747, -0.00225579, -0.07645444, -0.10124823, -0.21860119, -0.22626776])
+lyapunov_exp_loaded = lyapunov_exp
+lyapunov_exp_num = np.array([0.02482747, -0.00225579, -0.07645444, -0.10124823, -0.21860119, -0.22626776])
 # lyapunov_exp_num = np.array([ 1.03778442e+00,  3.70627282e-03, -1.49920354e+01]) # euler
-fig= plt.figure(figsize=(15, 5))
-ax= fig.add_subplot(111)
-lyapunov_time= compute_lyapunov_time_arr(np.arange(0, 100000, 0.01), window_size=window_size, c_lyapunov=0.02)
+fig = plt.figure(figsize=(15, 5))
+ax = fig.add_subplot(111)
+lyapunov_time = compute_lyapunov_time_arr(np.arange(0, 100000, 0.01), window_size=window_size, c_lyapunov=0.02)
 for i in range(dim):
     plt.plot(lyapunov_time[: len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, i],)
 
 for i in range(len(lyapunov_exp_num)):
     plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], np.ones(
         shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[i], 'k--')
-    ax.text(lyapunov_time[len(lyapunov_exp_loaded)]+5, lyapunov_exp_num[i], f'{lyapunov_exp_num[i]:.3f}', ha = "center")
+    ax.text(lyapunov_time[len(lyapunov_exp_loaded)]+5, lyapunov_exp_num[i], f'{lyapunov_exp_num[i]:.3f}', ha="center")
 plt.plot(
     lyapunov_time[: len(lyapunov_exp_loaded)],
     np.ones(shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[2],

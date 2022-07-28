@@ -40,7 +40,7 @@ from lstm.preprocessing.data_processing import (create_df_nd_mtm,
 from lstm.utils.config import generate_config
 from lstm.utils.random_seed import reset_random_seeds
 from wandb.keras import WandbCallback
-
+from lstm.lorenz import fixpoints
 
 
 warnings.simplefilter(action="ignore", category=FutureWarning)

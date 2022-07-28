@@ -9,8 +9,8 @@ import tensorflow as tf
 
 sys.path.append('../')
 from lstm.closed_loop_tools_mto import prediction_closed_loop
-from lstm.lstm_model import build_open_loop_lstm, build_pi_model
-from lstm.postprocessing import plots, prediction_horizon
+from lstm.lstm_model import build_pi_model
+from lstm.postprocessing import prediction_horizon
 from lstm.preprocessing.data_processing import (create_df_3d,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
@@ -94,20 +94,6 @@ for j in range(len(epochs)):
         pred_lt_l2[i, j] = pred_lt_temp_l2
 
     kl_div[j] = prediction_horizon.kl_divergence(prediction, df_test.T, window_size=window_size)
-
-    # fig, axs = plt.subplots(3, 1, sharex=True, sharey=True, facecolor="white")  # , figsize=(15, 14))
-    # axs[0].plot(lyapunov_time[:n_length], df_test.T[window_size: window_size+n_length, 0], 'k')
-    # axs[0].plot(lyapunov_time[:n_length], prediction[:n_length, 0], 'r--')
-    # axs[1].plot(lyapunov_time[:n_length], df_test.T[window_size: window_size+n_length, 1], 'k')
-    # axs[1].plot(lyapunov_time[:n_length], prediction[:n_length, 1], 'r--')
-    # axs[2].plot(lyapunov_time[:n_length], df_test.T[window_size: window_size+n_length, 2], 'k', label="Numerical Solution")
-    # axs[2].plot(lyapunov_time[:n_length], prediction[:n_length, 2], 'r--', label="Prediction")
-    # axs[2].legend(loc="center left", bbox_to_anchor=(1.0, 2.0))
-    # axs[2].set_ylim(-1,1)
-    # fig.suptitle("Epoch %d Prediction Horizon threshold: %.1f - LT: %4f" % (j, lt_threshold[-1], pred_lt_temp))
-    # fig.savefig(img_filepath+str(j)+ ".png", dpi=200, facecolor="w", bbox_inches="tight")
-    # print("prediction saved at ", img_filepath+str(j)+ ".png")
-    # plt.close(fig)
 
 print(pred_lt)
 plt.title("Prediction Horizon for Different Threshold")

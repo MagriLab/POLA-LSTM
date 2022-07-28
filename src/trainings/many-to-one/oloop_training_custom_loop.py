@@ -52,7 +52,6 @@ def run_lstm(args: argparse.Namespace):
     lorenz_dim = 3
     train_dataset = create_df_3d(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
     valid_dataset = create_df_3d(df_valid.transpose(), args.window_size, args.batch_size, 1)
-    test_dataset = create_df_3d(df_test.transpose(), args.window_size, args.batch_size, 1)
 
     model = build_pi_model(args.n_cells)
     model.load_weights(args.input_data_path)

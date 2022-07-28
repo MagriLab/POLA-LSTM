@@ -1,17 +1,9 @@
 import argparse
-import random
-import time
 from pathlib import Path
-from pickletools import optimize
-from re import L
 
-import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
-from .loss import loss_oloop, loss_oloop_l2_reg, norm_pi_loss
-from .postprocessing import plots
+from .loss import loss_oloop
 
 lorenz_dim = 3
 
@@ -45,6 +37,7 @@ def load_model(model_path, epochs, model_dict, dim=3):
     model = build_pi_model(model_dict['ML_CONSTRAINTS']['N_CELLS'], dim=dim)
     model.load_weights(model_path + "model/" + str(epochs) + "/weights").expect_partial()
     return model
+
 
 class LorenzLSTM(tf.keras.Model):
     def __init__(self, args: argparse.Namespace, log_board_path: Path):

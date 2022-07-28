@@ -1,32 +1,12 @@
-
-from wandb.keras import WandbCallback
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.utils.config import generate_config
-from lstm.preprocessing.data_processing import (create_df_nd_mtm,
-                                                df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.postprocessing import plots_mtm
-from lstm.lstm_model import build_pi_model
-from lstm.loss import loss_oloop
-from lstm.cdv_equations import cdv_system, cdv_system_tensor
 import argparse
-import datetime
-import importlib
 import os
-import random
 import sys
 import time
 import warnings
 from pathlib import Path
-
-import einops
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import tensorflow as tf
-import tensorflow_datasets as tfds
-import torch
 # import wandb
 
 # wandb.login()
@@ -47,6 +27,17 @@ plt.rcParams["figure.facecolor"] = "w"
 tf.keras.backend.set_floatx('float64')
 sys.path.append('../..')
 
+from wandb.keras import WandbCallback
+from lstm.utils.random_seed import reset_random_seeds
+from lstm.utils.config import generate_config
+from lstm.preprocessing.data_processing import (create_df_nd_mtm,
+                                                df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing import plots_mtm
+from lstm.lstm_model import build_pi_model
+from lstm.loss import loss_oloop
+from lstm.cdv_equations import cdv_system_tensor
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 dim = 6
@@ -62,6 +53,7 @@ def build_pi_model(cells=100):
     optimizer = tf.keras.optimizers.Adam()
     model.compile(optimizer=optimizer)
     return model
+
 
 def run_lstm(args: argparse.Namespace):
 
@@ -82,8 +74,7 @@ def run_lstm(args: argparse.Namespace):
     dim = 6
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
     valid_dataset = create_df_nd_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
-    test_dataset = create_df_nd_mtm(df_test.transpose(), args.window_size, args.batch_size, 1)
-
+    
     model = build_pi_model(args.n_cells)
     print("--- Model build --- ")
     if load_model:
@@ -244,5 +235,5 @@ generate_config(yaml_config_path, parsed_args)
 print('Physics weight', parsed_args.physics_weighing)
 run_lstm(parsed_args)
 
-# python many_to_many_cdv.py -dp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/small_window/ -cp ../cdv_data/CSV/euler_17500_trans.csv 
+# python many_to_many_cdv.py -dp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/small_window/ -cp ../cdv_data/CSV/euler_17500_trans.csv
 # python many_to_many_cdv.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_17500_trans.csv

@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from .lorenz import norm_lorenz, norm_lorenz_batch
