@@ -27,20 +27,20 @@ import seaborn as sns
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import torch
-import wandb
+# import wandb
 
-wandb.login()
+# wandb.login()
 physical_devices = tf.config.list_physical_devices('GPU')
-try:
-    # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[0], 'GPU')
-    logical_devices = tf.config.list_logical_devices('GPU')
-    print('Number of used GPUs: ', len(logical_devices))
-    # Logical device was not created for first GPU
-    assert len(logical_devices) == len(physical_devices) - 1
-except:
-    # Invalid device or cannot modify virtual devices once initialized.
-    pass
+# try:
+#     # Disable first GPU
+#     tf.config.set_visible_devices(physical_devices[0], 'GPU')
+#     logical_devices = tf.config.list_logical_devices('GPU')
+#     print('Number of used GPUs: ', len(logical_devices))
+#     # Logical device was not created for first GPU
+#     assert len(logical_devices) == len(physical_devices) - 1
+# except:
+#     # Invalid device or cannot modify virtual devices once initialized.
+#     pass
 tf.debugging.set_log_device_placement(True)
 plt.rcParams["figure.facecolor"] = "w"
 
@@ -203,10 +203,10 @@ def run_lstm(args: argparse.Namespace):
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=10)
+parser.add_argument('--epoch_steps', type=int, default=1000)
 parser.add_argument('--epoch_iter', type=int, default=10)
-parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=10)
+parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -217,7 +217,7 @@ parser.add_argument('--dropout', type=float, default=0.0)
 parser.add_argument('--early_stop', default=False, action='store_true')
 parser.add_argument('--early_stop_patience', type=int, default=0)
 parser.add_argument('--physics_informed', default=True, action='store_true')
-parser.add_argument('--physics_weighing', type=float, default=1.0)
+parser.add_argument('--physics_weighing', type=float, default=0.0)
 
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
@@ -225,12 +225,11 @@ parser.add_argument('--t_trans', type=int, default=750)
 parser.add_argument('--t_end', type=int, default=1750)
 parser.add_argument('--delta_t', type=int, default=0.1)
 parser.add_argument('--total_n', type=float, default=17500)
-parser.add_argument('--window_size', type=int, default=50)
-parser.add_argument('--hidden_units', type=int, default=10)
+parser.add_argument('--window_size', type=int, default=20)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 # arguments to define paths
 # parser.add_argument( '--experiment_path', type=Path, required=True)
-parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
+# parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
 # parser.add_argument('--log-board_path', type=Path, required=True)
 parser.add_argument('-dp', '--data_path', type=Path, required=True)
 parser.add_argument('-cp', '--config_path', type=Path, required=True)
@@ -240,10 +239,10 @@ parsed_args = parser.parse_args()
 
 yaml_config_path = parsed_args.data_path / f'config.yml'
 
-load_model = True
+load_model = False
 generate_config(yaml_config_path, parsed_args)
 print('Physics weight', parsed_args.physics_weighing)
 run_lstm(parsed_args)
 
-# python many_to_many_cdv.py -dp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/super-sweep-2/ -cp ../cdv_data/CSV/euler_17500_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/sweep_Test/super-sweep-2/model/5000
+# python many_to_many_cdv.py -dp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/cdv/small_window/ -cp ../cdv_data/CSV/euler_17500_trans.csv 
 # python many_to_many_cdv.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_17500_trans.csv
