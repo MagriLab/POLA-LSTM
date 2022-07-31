@@ -18,7 +18,7 @@ def solution_from_np(filename):
 
 
 
-t, x, y, z = solution_from_np("CSV/Lorenz_001_10000.csv")
+t, x, y, z = solution_from_np("/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/lorenz_data/CSV/10000/rk4_10000_norm_trans.csv")
 # t, x_2, y_2, z_2 = solution_from_np("CSV/lorenz_init2.csv")
 n = len(x)
 
