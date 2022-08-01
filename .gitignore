@@ -219,3 +219,4 @@ src/models/
 CSV/
 wandb/
 models/
+diff_dyn_sys/
