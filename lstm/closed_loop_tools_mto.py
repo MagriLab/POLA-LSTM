@@ -33,7 +33,6 @@ def compute_lyapunov_time_arr(time_vector, c_lyapunov=0.90566, window_size=50):
 
 def select_random_window_with_label(df_transposed, n_windows, window_size=50):
     idx = random.sample(range(len(df_transposed) - window_size - 1), n_windows)
-    # window_list =[]
     window_list = [
         df_transposed[i: i + window_size,
                       :].reshape(1, window_size, lorenz_dim)
@@ -48,7 +47,6 @@ def select_random_window_with_label(df_transposed, n_windows, window_size=50):
 def select_random_batch_with_label(df_transposed, window_size=50, batch_size=32):
     idx_start = random.randint(0, len(df_transposed) - window_size - 1)
     idx = np.arange(start=idx_start, stop=idx_start + batch_size)
-    # window_list =[]
     window_list = [
         df_transposed[i: i + window_size,
                       :].reshape(1, window_size, lorenz_dim)

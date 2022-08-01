@@ -93,13 +93,13 @@ def step_and_jac(u_t_in, h, c, model, idx, dim):
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/lorenz_data/CSV/100000/rk4_100000_norm_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/lorenz_data/CSV/500000/rk4_500000_norm_trans.csv',
     delimiter=",").astype(
     np.float64)
 df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/rk4/100000/256/'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/rk4/500000/256/model'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
@@ -121,7 +121,7 @@ lyapunov_time, prediction = prediction_closed_loop(
 t_lyap = 0.9**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
-N = 11*N_lyap
+N = 110*N_lyap
 Ntransient = max(int(N/10), window_size+2)
 N_test = N - Ntransient
 print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
