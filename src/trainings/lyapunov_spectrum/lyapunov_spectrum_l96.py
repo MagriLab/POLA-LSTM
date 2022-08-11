@@ -128,32 +128,32 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
 
     h_new = o * tf.tanh(c_new)
 
-    Jac_z_h_ana = tf.transpose(tf.matmul(model.layers[1].get_weights()[0], model.layers[0].cell.kernel)+model.layers[0].cell.recurrent_kernel)
-    Jac_i_z_ana = einops.rearrange(tf.linalg.diag(i*(1-i)), '1 i j -> i j')
-    Jac_i_h_ana = tf.matmul(Jac_i_z_ana, Jac_z_h_ana[:cell_dim, :])
-    Jac_f_h_ana = tf.matmul(einops.rearrange(tf.linalg.diag(f*(1-f)), '1 i j -> i j'), Jac_z_h_ana[cell_dim:2*cell_dim, :])
-    Jac_o_h_ana = tf.matmul(einops.rearrange(tf.linalg.diag(o*(1-o)), '1 i j -> i j'), Jac_z_h_ana[3*cell_dim:4*cell_dim, :])
-    Jac_c_t_h_ana = tf.matmul(tf.reshape(tf.linalg.diag(1- c_tilde**2), shape=(cell_dim,cell_dim)), Jac_z_h_ana[2*cell_dim:3*cell_dim, :])
-    Jac_i_c_tilde_ana = (Jac_c_t_h_ana * tf.transpose(i)+ Jac_i_h_ana*tf.transpose(c_tilde))
-    Jac_c_new_c_ana = tf.reshape(tf.linalg.diag(f), shape=(cell_dim,cell_dim)) 
-    Jac_h_new_c_ana = tf.reshape(tf.linalg.diag(o * (1- tf.tanh(c_new)**2)), shape=(cell_dim,cell_dim)) *Jac_c_new_c_ana 
-    Jac_c_new_h_ana = Jac_i_c_tilde_ana + Jac_f_h_ana * tf.transpose(c) 
-    Jac_h_new_h_ana = (tf.matmul(einops.rearrange(tf.linalg.diag(1- tf.tanh(c_new)**2), '1 i j -> i j'), Jac_c_new_h_ana )* tf.transpose(o)+ Jac_o_h_ana*tf.transpose(tf.tanh(c_new)))
-    Jac_ana = tf.concat([tf.concat([Jac_c_new_c_ana, Jac_c_new_h_ana], axis=1),
-            tf.concat([Jac_h_new_c_ana, Jac_h_new_h_ana], axis=1)], axis=0)
-    return Jac_ana, u_t, h_new, c_new
+    Jac_z_h = tf.transpose(tf.matmul(model.layers[1].get_weights()[0], model.layers[0].cell.kernel)+model.layers[0].cell.recurrent_kernel)
+    Jac_i_z = einops.rearrange(tf.linalg.diag(i*(1-i)), '1 i j -> i j')
+    Jac_i_h = tf.matmul(Jac_i_z, Jac_z_h[:cell_dim, :])
+    Jac_f_h = tf.matmul(einops.rearrange(tf.linalg.diag(f*(1-f)), '1 i j -> i j'), Jac_z_h[cell_dim:2*cell_dim, :])
+    Jac_o_h = tf.matmul(einops.rearrange(tf.linalg.diag(o*(1-o)), '1 i j -> i j'), Jac_z_h[3*cell_dim:4*cell_dim, :])
+    Jac_c_t_h = tf.matmul(tf.reshape(tf.linalg.diag(1- c_tilde**2), shape=(cell_dim,cell_dim)), Jac_z_h[2*cell_dim:3*cell_dim, :])
+    Jac_i_c_tilde = (Jac_c_t_h * tf.transpose(i)+ Jac_i_h*tf.transpose(c_tilde))
+    Jac_c_new_c = tf.reshape(tf.linalg.diag(f), shape=(cell_dim,cell_dim)) 
+    Jac_h_new_c = tf.reshape(tf.linalg.diag(o * (1- tf.tanh(c_new)**2)), shape=(cell_dim,cell_dim)) *Jac_c_new_c 
+    Jac_c_new_h = Jac_i_c_tilde + Jac_f_h * tf.transpose(c) 
+    Jac_h_new_h = (tf.matmul(einops.rearrange(tf.linalg.diag(1- tf.tanh(c_new)**2), '1 i j -> i j'), Jac_c_new_h )* tf.transpose(o)+ Jac_o_h*tf.transpose(tf.tanh(c_new)))
+    Jac = tf.concat([tf.concat([Jac_c_new_c, Jac_c_new_h], axis=1),
+            tf.concat([Jac_h_new_c, Jac_h_new_h], axis=1)], axis=0)
+    return Jac, u_t, h_new, c_new
 
 print('Analytical derivative')
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/dim_20_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D10/42500/25-50/'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D20/42500/100-10/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
@@ -171,14 +171,14 @@ lyapunov_time, prediction = prediction_closed_loop(
     model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=0.9
 )
 print("prediction successfull")
-
+start_time = time.time()
 # Set up parameters for LE computation
 t_lyap = 0.9**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
 N = 1000*N_lyap
 
-Ntransient = max(int(N/10), window_size+2)
+Ntransient = max(int(N/100), window_size+2)
 N_test = N - Ntransient
 print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
 Ttot = np.arange(int(N_test/norm_time)) * dt * norm_time
@@ -220,7 +220,7 @@ delta = q[:, :dim]
 
 # compute delta on transient
 for i in range(window_size+1, Ntransient):
-    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, dim)
+    jacobian, u_t, h, c = step_and_jac_analytical(u_t, h, c, model, i, dim)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
 
@@ -228,10 +228,11 @@ for i in range(window_size+1, Ntransient):
         q, r = qr_factorization(delta)
         delta = q[:, :dim]
 
+print('Finished on Transient')
 # compute lyapunov exponent based on qr decomposition
 
 for i in range(Ntransient, N):
-    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, dim)
+    jacobian, u_t, h, c = step_and_jac_analytical(u_t, h, c, model, i, dim)
     indx = i-Ntransient
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
@@ -243,7 +244,7 @@ for i in range(Ntransient, N):
         qq_t[:, :, indx] = q
         LE[indx] = np.abs(np.diag(r[:dim, :dim]))
 
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             print(f'Inside closed loop i = {i}')
             if indx != 0:
                 lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (dim, 1)).T
@@ -252,7 +253,6 @@ for i in range(Ntransient, N):
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print(f'Total time: {time.time()-start_time}')
 print(f'Final Lyapunov exponents: {lyapunov_exp[-1]}')
-
 np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
 print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
 
