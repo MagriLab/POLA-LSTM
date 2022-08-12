@@ -21,7 +21,17 @@ from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
 from lstm.postprocessing import plots_mtm
 from lstm.lstm_model import build_pi_model
 from lstm.loss import loss_oloop, norm_loss_pi_many
-
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+    # Disable first GPU
+    tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+    logical_devices = tf.config.list_logical_devices('GPU')
+    print('Number of used GPUs: ', len(logical_devices))
+    # Logical device was not created for first GPU
+    assert len(logical_devices) == len(physical_devices) - 1
+except:
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
