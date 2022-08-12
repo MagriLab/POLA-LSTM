@@ -11,21 +11,24 @@ import numpy as np
 import tensorflow as tf
 
 sys.path.append('../..')
-from lstm.loss import loss_oloop, norm_loss_pi_many
-from lstm.lstm_model import build_pi_model
-from lstm.postprocessing import plots_mtm
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.preprocessing.data_processing import (create_df_nd_mtm, 
+
+from lstm.preprocessing.data_processing import (create_df_nd_mtm,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
-from lstm.utils.config import generate_config
 from lstm.utils.random_seed import reset_random_seeds
+from lstm.utils.config import generate_config
+from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing import plots_mtm
+from lstm.lstm_model import build_pi_model
+from lstm.loss import loss_oloop, norm_loss_pi_many
+
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-lorenz_dim = 6
+lorenz_dim = 20
+
 
 def run_lstm(args: argparse.Namespace):
 
@@ -59,7 +62,7 @@ def run_lstm(args: argparse.Namespace):
         with tf.GradientTape() as tape:
             one_step_pred = model(x_batch_train, training=True)
             loss_dd = loss_oloop(y_batch_train, one_step_pred)
-            loss_pi = 0 #norm_loss_pi_many(one_step_pred, norm=normalised)
+            loss_pi = 0  # norm_loss_pi_many(one_step_pred, norm=normalised)
             loss_value = loss_dd + weight*loss_pi
         grads = tape.gradient(loss_value, model.trainable_weights)
         model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
@@ -69,7 +72,7 @@ def run_lstm(args: argparse.Namespace):
     def valid_step_pi(x_batch_valid, y_batch_valid, normalised=True):
         val_logit = model(x_batch_valid, training=False)
         loss_dd = loss_oloop(y_batch_valid, val_logit)
-        loss_pi = 0 #norm_loss_pi_many(val_logit, norm=normalised)
+        loss_pi = 0  # norm_loss_pi_many(val_logit, norm=normalised)
         return loss_dd, loss_pi
 
     train_loss_dd_tracker = np.array([])
@@ -77,7 +80,7 @@ def run_lstm(args: argparse.Namespace):
     valid_loss_dd_tracker = np.array([])
     valid_loss_pi_tracker = np.array([])
 
-    for epoch in range(args.n_epochs+1):
+    for epoch in range(1, args.n_epochs+1):
         model.optimizer.learning_rate = decayed_learning_rate(epoch)
         start_time = time.time()
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
@@ -110,13 +113,14 @@ def run_lstm(args: argparse.Namespace):
                 n_length=500,
                 window_size=args.window_size,
                 img_filepath=filepath / "images" / f"pred_{epoch}.png",
+                c_lyapunov=1.1
             )
             plots_mtm.plot_phase_space(
                 predictions,
                 epoch,
                 df_test,
                 window_size=args.window_size,
-                img_filepath=filepath / "images" / f"phase_{epoch}.png",
+                img_filepath=filepath / "images" / f"phase_{epoch}.png"
             )
 
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
@@ -134,11 +138,11 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=1000)
-parser.add_argument('--epoch_steps', type=int, default=100)
+parser.add_argument('--n_epochs', type=int, default=10000)
+parser.add_argument('--epoch_steps', type=int, default=1000)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=50)
+parser.add_argument('--n_cells', type=int, default=200)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -154,10 +158,10 @@ parser.add_argument('--physics_weighing', type=float, default=0.0)
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=10)
-parser.add_argument('--t_end', type=int, default=20000)
+parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
-parser.add_argument('--total_n', type=float, default=200000)
-parser.add_argument('--window_size', type=int, default=25)
+parser.add_argument('--total_n', type=float, default=17600)
+parser.add_argument('--window_size', type=int, default=50)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
@@ -175,8 +179,10 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 
 
 generate_config(yaml_config_path, parsed_args)
-print(f'Physics weight {parsed_args.physics_weighing}' )
+print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
 
 # python many_to_many_l96.py -dp ../models/l96/200000/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_6_rk4_200000_0.01_stand13.33_trans.csv
+
+# python many_to_many_l96.py -dp ../models/l96/D20/42500/50-50/ -cp dim_20_rk4_42500_0.01_stand13.33_trans.csv
