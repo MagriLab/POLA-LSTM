@@ -144,7 +144,7 @@ test_window = create_test_window(df_test, window_size=window_size)
 u_t = test_window[:, 0, :]
 h = tf.Variable(model.layers[0].get_initial_state(test_window)[0], trainable=False)
 c = tf.Variable(model.layers[0].get_initial_state(test_window)[1], trainable=False)
-pred = np.zeros(shape=(N, 3))
+pred = np.zeros(shape=(N, dim))
 pred[0, :] = u_t
 
 start_time = time.time()

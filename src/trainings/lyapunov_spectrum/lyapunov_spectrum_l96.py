@@ -153,13 +153,13 @@ mydf = np.genfromtxt(
 df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D20/42500/100-10/'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D20/42500/50-50/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
 window_size = model_dict['LORENZ_DATA']['WINDOW_SIZE']
 n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-epochs = model_dict['ML_CONSTRAINTS']['N_EPOCHS']
+epochs = 5000 #model_dict['ML_CONSTRAINTS']['N_EPOCHS']
 dt = model_dict['LORENZ_DATA']['DELTA T']  # time step
 
 make_img_filepath(model_path)
