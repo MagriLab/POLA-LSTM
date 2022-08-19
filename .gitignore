@@ -215,8 +215,6 @@ pip-selfcheck.json
 logs/
 notebooks/
 *.ipynb
-src/models/
 CSV/
 wandb/
-models/
 diff_dyn_sys/
