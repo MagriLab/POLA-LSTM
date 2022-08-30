@@ -145,7 +145,7 @@ parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=1000)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=25)
+parser.add_argument('--n_cells', type=int, default=10)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -164,7 +164,7 @@ parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
-parser.add_argument('--window_size', type=int, default=50)
+parser.add_argument('--window_size', type=int, default=100)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
@@ -188,5 +188,5 @@ run_lstm(parsed_args)
 
 # python many_to_many_l96.py -dp ../models/l96/200000/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_6_rk4_200000_0.01_stand13.33_trans.csv
 
-# python many_to_many_l96.py -dp ../models/l96/D10-6/42500/50-25/ -cp dim_10_6_rk4_42500_0.01_stand13.33_trans.csv
-# python many_to_many_l96.py -dp ../models/l96/D10-6-PCA/42500/50-25/ -cp PCA_dim_10_6_rk4_42500_0.01_stand13.33_trans.csv
+# python many_to_many_l96.py -dp ../models/l96/D10-6/42500/50-10/ -cp dim_10_6_rk4_42500_0.01_stand13.33_trans.csv
+# python many_to_many_l96.py -dp ../models/l96/D10-6-PCA/42500/100-10/ -cp PCA_dim_10_6_rk4_42500_0.01_stand13.33_trans.csv
