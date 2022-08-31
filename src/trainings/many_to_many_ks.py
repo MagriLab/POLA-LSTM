@@ -131,11 +131,11 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=5000)
+parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=25)
+parser.add_argument('--n_cells', type=int, default=50)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -154,7 +154,7 @@ parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
-parser.add_argument('--window_size', type=int, default=50)
+parser.add_argument('--window_size', type=int, default=25)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
