@@ -37,7 +37,7 @@ plt.rcParams["figure.facecolor"] = "w"
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-ks_dim = 10
+ks_dim = 64
 
 
 def run_lstm(args: argparse.Namespace):
@@ -50,8 +50,8 @@ def run_lstm(args: argparse.Namespace):
 
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.25, valid_ratio=0.01)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.25, valid_ratio=0.01)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.05, valid_ratio=0.01)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.05, valid_ratio=0.01)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -115,7 +115,17 @@ def run_lstm(args: argparse.Namespace):
 
         if epoch % args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-
+                        
+            predictions = plots_mtm.plot_prediction(
+                model,
+                epoch,
+                time_test,
+                df_test,
+                n_length=500,
+                window_size=args.window_size,
+                img_filepath=filepath / "images" / f"pred_{epoch}.png",
+                c_lyapunov=0.09
+            )
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
             logs_checkpoint = filepath / "logs"
@@ -134,7 +144,7 @@ parser = argparse.ArgumentParser(description='Open Loop')
 parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--epoch_iter', type=int, default=10)
-parser.add_argument('--batch_size', type=int, default=256)
+parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=50)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
@@ -154,7 +164,7 @@ parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
-parser.add_argument('--window_size', type=int, default=25)
+parser.add_argument('--window_size', type=int, default=50)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
@@ -175,5 +185,7 @@ generate_config(yaml_config_path, parsed_args)
 print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
+# python many_to_many_ks.py -dp ../models/ks/D3-40_34/60000/50-25/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_40_to_50_dx200_rk4_240000_stand_3.76_trans.csv
 
-# python many_to_many_ks.py -dp ../models/ks/D10-40_50/60000/50-25/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_40_to_50_dx200_rk4_240000_stand_3.76_trans.csv
+
+# python many_to_many_ks.py -dp ../models/ks/D128-100/60000/50-50/ -cp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_128_dx100_rk4_240000_stand_3.84_trans.csv

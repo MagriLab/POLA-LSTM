@@ -218,3 +218,5 @@ notebooks/
 CSV/
 wandb/
 diff_dyn_sys/
+src/trainings/Miniconda3-latest-Linux-x86_64.sh
+src/trainings/cuda-ubuntu2004.pin
