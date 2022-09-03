@@ -52,8 +52,8 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.05)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.05)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.1)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.1)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -156,6 +156,7 @@ parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=500)
+parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -203,4 +204,4 @@ run_lstm(parsed_args)
 # python many_to_many_ks.py -dp ../models/ks/D128-100/40000/20-80/ -cp KS_128_dx100_rk4_50000_stand_3.84_trans.csv
 
 
-# python many_to_many_ks.py -dp ../models/ks/D64/100000/20-80/ -cp KS_64_dx75_rk4_100000_stand_3.28_trans.csv
+# python many_to_many_ks.py -dp ../models/ks/D64/18250/20-100/ -cp KS_64_dx75_rk4_37500_stand_3.28_trans.csv
