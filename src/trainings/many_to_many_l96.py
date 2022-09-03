@@ -37,7 +37,7 @@ plt.rcParams["figure.facecolor"] = "w"
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-lorenz_dim = 6
+lorenz_dim = 64
 
 
 def run_lstm(args: argparse.Namespace):
@@ -47,7 +47,9 @@ def run_lstm(args: argparse.Namespace):
     filepath = args.data_path
     if not os.path.exists(filepath / "images"):
         os.makedirs(filepath / "images")
-
+    logs_checkpoint = filepath / "logs"
+    if not os.path.exists(logs_checkpoint):
+        os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
     df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
@@ -115,22 +117,28 @@ def run_lstm(args: argparse.Namespace):
 
         if epoch % args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-            predictions = plots_mtm.plot_prediction(
-                model,
-                epoch,
-                time_test,
-                df_test,
-                n_length=500,
-                window_size=args.window_size,
-                img_filepath=filepath / "images" / f"pred_{epoch}.png",
-                c_lyapunov=1.1
-            )
+            # predictions = plots_mtm.plot_prediction(
+            #     model,
+            #     epoch,
+            #     time_test,
+            #     df_test,
+            #     n_length=500,
+            #     window_size=args.window_size,
+            #     img_filepath=filepath / "images" / f"pred_{epoch}.png",
+            #     c_lyapunov=1.1
+            # )
 
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
-            logs_checkpoint = filepath / "logs"
-    if not os.path.exists(logs_checkpoint):
-        os.makedirs(logs_checkpoint)
+            np.savetxt(logs_checkpoint/f"training_loss_dd_{epoch}.txt", train_loss_dd_tracker)
+            np.savetxt(logs_checkpoint/f"training_loss_pi_{epoch}.txt", train_loss_pi_tracker)
+            np.savetxt(logs_checkpoint/f"valid_loss_dd_{epoch}.txt", valid_loss_dd_tracker)
+            np.savetxt(logs_checkpoint/f"valid_loss_pi_{epoch}.txt", valid_loss_pi_tracker)
+            logs_epoch_checkpoint = filepath / "logs"/ f"{epoch}"
+            loss_arr_to_tensorboard(logs_epoch_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
+                                    valid_loss_dd_tracker, valid_loss_pi_tracker)
+
+
     np.savetxt(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_tracker)
     np.savetxt(logs_checkpoint/f"training_loss_pi.txt", train_loss_pi_tracker)
     np.savetxt(logs_checkpoint/f"valid_loss_dd.txt", valid_loss_dd_tracker)
@@ -142,10 +150,10 @@ def run_lstm(args: argparse.Namespace):
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=1000)
+parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=10)
+parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -164,7 +172,7 @@ parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
-parser.add_argument('--window_size', type=int, default=100)
+parser.add_argument('--window_size', type=int, default=50)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
@@ -186,7 +194,5 @@ print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
 
-# python many_to_many_l96.py -dp ../models/l96/200000/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_6_rk4_200000_0.01_stand13.33_trans.csv
+# python many_to_many_l96.py -dp ../models/l96/D64/50-100/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_6_rk4_200000_0.01_stand13.33_trans.csv
 
-# python many_to_many_l96.py -dp ../models/l96/D10-6/42500/50-10/ -cp dim_10_6_rk4_42500_0.01_stand13.33_trans.csv
-# python many_to_many_l96.py -dp ../models/l96/D10-6-PCA/42500/100-10/ -cp PCA_dim_10_6_rk4_42500_0.01_stand13.33_trans.csv

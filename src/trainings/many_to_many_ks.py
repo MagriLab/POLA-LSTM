@@ -47,11 +47,13 @@ def run_lstm(args: argparse.Namespace):
     filepath = args.data_path
     if not os.path.exists(filepath / "images"):
         os.makedirs(filepath / "images")
-
+    logs_checkpoint = filepath / "logs"
+    if not os.path.exists(logs_checkpoint):
+        os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.25, valid_ratio=0.1)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.25, valid_ratio=0.1)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.05)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.05)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -128,7 +130,18 @@ def run_lstm(args: argparse.Namespace):
             )
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
-            logs_checkpoint = filepath / "logs"
+            
+            model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+
+            np.savetxt(logs_checkpoint/f"training_loss_dd_{epoch}.txt", train_loss_dd_tracker)
+            np.savetxt(logs_checkpoint/f"training_loss_pi_{epoch}.txt", train_loss_pi_tracker)
+            np.savetxt(logs_checkpoint/f"valid_loss_dd_{epoch}.txt", valid_loss_dd_tracker)
+            np.savetxt(logs_checkpoint/f"valid_loss_pi_{epoch}.txt", valid_loss_pi_tracker)
+            logs_epoch_checkpoint = filepath / "logs"/ f"{epoch}"
+            loss_arr_to_tensorboard(logs_epoch_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
+                                    valid_loss_dd_tracker, valid_loss_pi_tracker)
+
+
     if not os.path.exists(logs_checkpoint):
         os.makedirs(logs_checkpoint)
     np.savetxt(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_tracker)
@@ -143,9 +156,8 @@ parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=500)
-parser.add_argument('--epoch_iter', type=int, default=10)
-parser.add_argument('--batch_size', type=int, default=128)
-parser.add_argument('--n_cells', type=int, default=50)
+parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -164,7 +176,7 @@ parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
-parser.add_argument('--window_size', type=int, default=100)
+parser.add_argument('--window_size', type=int, default=20)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
@@ -188,4 +200,7 @@ run_lstm(parsed_args)
 # python many_to_many_ks.py -dp ../models/ks/D3-40_34/60000/50-25/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_40_to_50_dx200_rk4_240000_stand_3.76_trans.csv
 
 
-# python many_to_many_ks.py -dp ../models/ks/D128-100/60000/50-50/ -cp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_128_dx100_rk4_240000_stand_3.84_trans.csv
+# python many_to_many_ks.py -dp ../models/ks/D128-100/40000/20-80/ -cp KS_128_dx100_rk4_50000_stand_3.84_trans.csv
+
+
+# python many_to_many_ks.py -dp ../models/ks/D64/100000/20-80/ -cp KS_64_dx75_rk4_100000_stand_3.28_trans.csv
