@@ -61,7 +61,7 @@ def run_lstm(args: argparse.Namespace):
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
     valid_dataset = create_df_nd_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
 
-    model = build_pi_model(args.n_cells)
+    model = build_pi_model(args.n_cells, dim=df_train.shape[0])
     # model.load_weights(args.input_data_path)
 
     def decayed_learning_rate(step):
@@ -90,7 +90,7 @@ def run_lstm(args: argparse.Namespace):
         loss_dd = loss_oloop(y_batch_valid, val_logit)
         # new_batch = split_window_label(append_label_to_window(x_batch_valid, val_logit))
         # two_step_pred = model(new_batch, training=False)
-        loss_pi = norm_loss_pi_many(val_logit, norm=normalised)
+        loss_pi = 0.0 #norm_loss_pi_many(val_logit, norm=normalised)
         return loss_dd, loss_pi
 
     train_loss_dd_tracker = np.array([])
@@ -132,13 +132,13 @@ def run_lstm(args: argparse.Namespace):
                 window_size=args.window_size,
                 img_filepath=filepath / "images" / f"pred_{epoch}.png",
             )
-            plots_mtm.plot_phase_space(
-                predictions,
-                epoch,
-                df_test,
-                window_size=args.window_size,
-                img_filepath=filepath / "images" / f"phase_{epoch}.png",
-            )
+            # plots_mtm.plot_phase_space(
+            #     predictions,
+            #     epoch,
+            #     df_test,
+            #     window_size=args.window_size,
+            #     img_filepath=filepath / "images" / f"phase_{epoch}.png",
+            # )
 
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)

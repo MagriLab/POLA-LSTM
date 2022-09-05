@@ -14,7 +14,7 @@ z_max = 48.0537
 @tf.function
 def loss_oloop(y_true, y_pred, washout=0):
     mse = tf.keras.losses.MeanSquaredError()
-    loss = mse(y_true[washout:, :], y_pred[washout:, :])
+    loss = mse(y_true[:, washout:, :], y_pred[:, washout:, :])
     return loss
 
 
