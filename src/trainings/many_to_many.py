@@ -16,11 +16,24 @@ from lstm.loss import loss_oloop, norm_loss_pi_many
 from lstm.lstm_model import build_pi_model
 from lstm.postprocessing import plots_mtm
 from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.preprocessing.data_processing import (create_df_3d_mtm, create_df_3d_mtm_random, 
+from lstm.preprocessing.data_processing import (create_df_nd_mtm, create_df_nd_mtm_random, 
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
 from lstm.utils.config import generate_config
 from lstm.utils.random_seed import reset_random_seeds
+
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+    # Disable first GPU
+    tf.config.set_visible_devices(physical_devices[-1], 'GPU')
+    logical_devices = tf.config.list_logical_devices('GPU')
+    print('Number of used GPUs: ', len(logical_devices))
+    # Logical device was not created for first GPU
+    assert len(logical_devices) == len(physical_devices) - 1
+except:
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
+
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
@@ -40,13 +53,13 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(filepath / "images")
 
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
-    mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
+    # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[2:, :], train_ratio=0.5, valid_ratio=0.25)
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
     # Windowing
-    train_dataset = create_df_3d_mtm_random(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], 500)
-    valid_dataset = create_df_3d_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
+    train_dataset = create_df_nd_mtm_random(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], 500)
+    valid_dataset = create_df_nd_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
 
     model = build_pi_model(args.n_cells)
     # model.load_weights(args.input_data_path)
@@ -188,4 +201,4 @@ run_lstm(parsed_args)
 # python many_to_many.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_37500_trans.csv
 
 
-# python many_to_many.py -dp ../models/rk4/10000/128_stand/ -cp ../lorenz_data/CSV/10000/rk4_10000_unnorm_trans.csv 
+# python many_to_many.py -dp ../models/l63/10000/d2d3/ -cp l63_rk4_10000_norm_trans.csv
