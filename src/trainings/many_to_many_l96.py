@@ -24,7 +24,7 @@ from lstm.loss import loss_oloop, norm_loss_pi_many
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+    tf.config.set_visible_devices(physical_devices[2:], 'GPU')
     logical_devices = tf.config.list_logical_devices('GPU')
     print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
@@ -37,7 +37,7 @@ plt.rcParams["figure.facecolor"] = "w"
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-lorenz_dim = 64
+lorenz_dim = 26
 
 
 def run_lstm(args: argparse.Namespace):
@@ -52,8 +52,8 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.4, valid_ratio=0.25)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.4, valid_ratio=0.25)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -152,8 +152,8 @@ parser = argparse.ArgumentParser(description='Open Loop')
 parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--epoch_iter', type=int, default=10)
-parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=100)
+parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--n_cells', type=int, default=200)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
@@ -172,7 +172,7 @@ parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
-parser.add_argument('--window_size', type=int, default=30)
+parser.add_argument('--window_size', type=int, default=25)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 
 
@@ -194,5 +194,8 @@ print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
 
-# python many_to_many_l96.py -dp ../models/l96/D64/50-100/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_6_rk4_200000_0.01_stand13.33_trans.csv
+# python many_to_many_l96.py -dp ../models/l96/D26/50-50/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_26_rk4_34200_0.01_stand13.33_trans.csv
 
+# python many_to_many_l96.py -dp ../models/KS/D26/50-50/ -cp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_26_dx35_rk4_37500_stand_3.4_trans.csv
+
+# python many_to_many_l96.py -dp ../models/l96/D20/42500/50-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
