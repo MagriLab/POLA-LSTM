@@ -16,7 +16,7 @@ from lstm.loss import loss_oloop, norm_loss_pi_many
 from lstm.lstm_model import build_pi_model
 from lstm.postprocessing import plots_mtm
 from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
-from lstm.preprocessing.data_processing import (create_df_nd_mtm, create_df_nd_mtm_random, 
+from lstm.preprocessing.data_processing import (create_df_nd_mtm, 
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
 from lstm.utils.config import generate_config
@@ -39,7 +39,7 @@ plt.rcParams["figure.facecolor"] = "w"
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-lorenz_dim = 3
+lorenz_dim = 2
 
 # x_fix, y_fix, z_fix = fixpoints(total_points=10000, unnorm=False)
 
@@ -58,7 +58,7 @@ def run_lstm(args: argparse.Namespace):
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
     # Windowing
-    train_dataset = create_df_nd_mtm_random(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], 500)
+    train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
     valid_dataset = create_df_nd_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1)
 
     model = build_pi_model(args.n_cells)
@@ -78,7 +78,7 @@ def run_lstm(args: argparse.Namespace):
             # new_batch = split_window_label(append_label_to_window(x_batch_train, one_step_pred))
             # two_step_pred = model(new_batch, training=True)
             loss_dd = loss_oloop(y_batch_train, one_step_pred)
-            loss_pi = norm_loss_pi_many(one_step_pred, norm=normalised)
+            loss_pi = 0.0 #norm_loss_pi_many(one_step_pred, norm=normalised)
             loss_value = loss_dd + weight*loss_pi
         grads = tape.gradient(loss_value, model.trainable_weights)
         model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
@@ -155,8 +155,8 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=1000)
+parser.add_argument('--n_epochs', type=int, default=5000)
+parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--n_cells', type=int, default=10)
