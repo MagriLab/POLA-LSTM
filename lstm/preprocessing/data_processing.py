@@ -57,36 +57,16 @@ def create_df_3d(series, window_size, batch_size, shuffle_buffer):
     return dataset
 
 
-def create_df_3d_mtm(series, window_size, batch_size, shuffle_buffer):
-    dataset = tf.data.Dataset.from_tensor_slices(series)
-    dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
-    dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
-    dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (window[:-1], window[1:])
-    )
-    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 3], [None, 3]))
-    return dataset
 
-
-def create_df_nd_mtm(series, window_size, batch_size, shuffle_buffer):
+def create_df_nd_mtm(series, window_size, batch_size, shuffle_buffer, shuffle_window=100):
     n = series.shape[1]
+    m = series.shape[0]
     dataset = tf.data.Dataset.from_tensor_slices(series)
     dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
+    dataset = dataset.shuffle(m*shuffle_window)
     dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
     dataset = dataset.shuffle(shuffle_buffer).map(
         lambda window: (window[:-1], window[1:])
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n], [None, n]))
-    return dataset
-
-
-def create_df_3d_mtm_random(series, window_size, batch_size, shuffle_buffer, new_size):
-    dataset = tf.data.Dataset.from_tensor_slices(series)
-    dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
-    dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
-    dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (window[:-1], window[1:])
-    )
-    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 3], [None, 3]))
-    tf.data.Dataset.random(seed=0).take(new_size)
     return dataset

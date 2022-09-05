@@ -10,6 +10,7 @@ y_max = 27.3171
 z_max = 48.0537
 
 
+
 @tf.function
 def loss_oloop(y_true, y_pred, washout=0):
     mse = tf.keras.losses.MeanSquaredError()
@@ -24,6 +25,7 @@ def loss_oloop_l2_reg(y_true, y_pred, washout=10, reg_weight=0.001):
         y_pred[washout:, :]
     )
     return loss
+
 
 
 def norm_backward_diff(y_pred, last_x_batch_train, delta_t=0.01, norm=True):
