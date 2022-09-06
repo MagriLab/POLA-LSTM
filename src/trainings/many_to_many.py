@@ -25,7 +25,7 @@ from lstm.utils.random_seed import reset_random_seeds
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[-1], 'GPU')
+    tf.config.set_visible_devices(physical_devices[0], 'GPU')
     logical_devices = tf.config.list_logical_devices('GPU')
     print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
