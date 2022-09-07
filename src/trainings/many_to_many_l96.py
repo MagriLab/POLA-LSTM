@@ -138,12 +138,8 @@ def run_lstm(args: argparse.Namespace):
 
 
 parser = argparse.ArgumentParser(description='Open Loop')
-# arguments for configuration parameters
-<<<<<<< HEAD
+
 parser.add_argument('--n_epochs', type=int, default=5000)
-=======
-parser.add_argument('--n_epochs', type=int, default=10000)
->>>>>>> b11d2096911380c7c4a9af7e587705985cc6597c
 parser.add_argument('--epoch_steps', type=int, default=250)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128)
