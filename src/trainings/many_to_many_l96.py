@@ -188,8 +188,7 @@ run_lstm(parsed_args)
 
 # python many_to_many_l96.py -dp ../models/KS/D26/90000/25-200/ -cp D26/KS_26_dx35_rk4_90000_stand_3.42_deltat_0.01_trans.csv
 
-<<<<<<< HEAD
 # python many_to_many_l96.py -dp ../models/l96/D20/42500/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
-=======
+
 # python many_to_many_l96.py -dp ../models/l96/D20/42500/50-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
->>>>>>> b11d2096911380c7c4a9af7e587705985cc6597c
+
