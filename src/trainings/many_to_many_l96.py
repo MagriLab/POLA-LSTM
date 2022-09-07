@@ -24,7 +24,7 @@ from lstm.loss import loss_oloop, norm_loss_pi_many
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[2:], 'GPU')
+    tf.config.set_visible_devices(physical_devices[2], 'GPU')
     logical_devices = tf.config.list_logical_devices('GPU')
     print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
@@ -139,7 +139,11 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
+<<<<<<< HEAD
 parser.add_argument('--n_epochs', type=int, default=5000)
+=======
+parser.add_argument('--n_epochs', type=int, default=10000)
+>>>>>>> b11d2096911380c7c4a9af7e587705985cc6597c
 parser.add_argument('--epoch_steps', type=int, default=250)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128)
@@ -188,4 +192,8 @@ run_lstm(parsed_args)
 
 # python many_to_many_l96.py -dp ../models/KS/D26/90000/25-200/ -cp D26/KS_26_dx35_rk4_90000_stand_3.42_deltat_0.01_trans.csv
 
+<<<<<<< HEAD
 # python many_to_many_l96.py -dp ../models/l96/D20/42500/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
+=======
+# python many_to_many_l96.py -dp ../models/l96/D20/42500/50-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
+>>>>>>> b11d2096911380c7c4a9af7e587705985cc6597c
