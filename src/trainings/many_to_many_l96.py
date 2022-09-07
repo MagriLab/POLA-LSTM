@@ -40,6 +40,32 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 lorenz_dim = 26
 
 
+def decayed_learning_rate(step):
+    decay_steps = 1000
+    decay_rate = 0.75
+    initial_learning_rate = args.learning_rate
+    # careful here! step includes batch steps in the tf framework
+    return initial_learning_rate * decay_rate ** (step / decay_steps)
+
+@tf.function
+def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
+    with tf.GradientTape() as tape:
+        one_step_pred = model(x_batch_train, training=True)
+        loss_dd = loss_oloop(y_batch_train, one_step_pred)
+        loss_pi = 0  # norm_loss_pi_many(one_step_pred, norm=normalised)
+        loss_value = loss_dd + weight*loss_pi
+    grads = tape.gradient(loss_value, model.trainable_weights)
+    model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
+    return loss_dd, loss_pi
+
+@tf.function
+def valid_step_pi(x_batch_valid, y_batch_valid, normalised=True):
+    val_logit = model(x_batch_valid, training=False)
+    loss_dd = loss_oloop(y_batch_valid, val_logit)
+    loss_pi = 0  # norm_loss_pi_many(val_logit, norm=normalised)
+    return loss_dd, loss_pi
+
+
 def run_lstm(args: argparse.Namespace):
 
     reset_random_seeds()
@@ -52,8 +78,8 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.25, valid_ratio=0.1)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.25, valid_ratio=0.1)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -61,32 +87,6 @@ def run_lstm(args: argparse.Namespace):
 
     model = build_pi_model(args.n_cells, dim=lorenz_dim)
     # model.load_weights(args.input_data_path)
-
-    def decayed_learning_rate(step):
-        decay_steps = 1000
-        decay_rate = 0.75
-        initial_learning_rate = args.learning_rate
-        # careful here! step includes batch steps in the tf framework
-        return initial_learning_rate * decay_rate ** (step / decay_steps)
-
-    @tf.function
-    def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
-        with tf.GradientTape() as tape:
-            one_step_pred = model(x_batch_train, training=True)
-            loss_dd = loss_oloop(y_batch_train, one_step_pred)
-            loss_pi = 0  # norm_loss_pi_many(one_step_pred, norm=normalised)
-            loss_value = loss_dd + weight*loss_pi
-        grads = tape.gradient(loss_value, model.trainable_weights)
-        model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
-        return loss_dd, loss_pi
-
-    @tf.function
-    def valid_step_pi(x_batch_valid, y_batch_valid, normalised=True):
-        val_logit = model(x_batch_valid, training=False)
-        loss_dd = loss_oloop(y_batch_valid, val_logit)
-        loss_pi = 0  # norm_loss_pi_many(val_logit, norm=normalised)
-        return loss_dd, loss_pi
-
     train_loss_dd_tracker = np.array([])
     train_loss_pi_tracker = np.array([])
     valid_loss_dd_tracker = np.array([])
@@ -117,16 +117,6 @@ def run_lstm(args: argparse.Namespace):
 
         if epoch % args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-            # predictions = plots_mtm.plot_prediction(
-            #     model,
-            #     epoch,
-            #     time_test,
-            #     df_test,
-            #     n_length=500,
-            #     window_size=args.window_size,
-            #     img_filepath=filepath / "images" / f"pred_{epoch}.png",
-            #     c_lyapunov=1.1
-            # )
 
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
             model.save_weights(model_checkpoint)
@@ -149,8 +139,8 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
-parser.add_argument('--n_epochs', type=int, default=10000)
-parser.add_argument('--epoch_steps', type=int, default=500)
+parser.add_argument('--n_epochs', type=int, default=5000)
+parser.add_argument('--epoch_steps', type=int, default=250)
 parser.add_argument('--epoch_iter', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--n_cells', type=int, default=200)
@@ -194,8 +184,8 @@ print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
 
-# python many_to_many_l96.py -dp ../models/l96/D26/50-50/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_26_rk4_34200_0.01_stand13.33_trans.csv
+# python many_to_many_l96.py -dp ../models/l96/D26/25-200/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_26_rk4_34200_0.01_stand13.33_trans.csv
 
-# python many_to_many_l96.py -dp ../models/KS/D26/50-50/ -cp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_26_dx35_rk4_37500_stand_3.4_trans.csv
+# python many_to_many_l96.py -dp ../models/KS/D26/90000/25-200/ -cp D26/KS_26_dx35_rk4_90000_stand_3.42_deltat_0.01_trans.csv
 
-# python many_to_many_l96.py -dp ../models/l96/D20/42500/50-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
+# python many_to_many_l96.py -dp ../models/l96/D20/42500/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
