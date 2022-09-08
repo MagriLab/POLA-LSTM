@@ -58,7 +58,7 @@ def create_df_3d(series, window_size, batch_size, shuffle_buffer):
 
 
 
-def create_df_nd_mtm(series, window_size, batch_size, shuffle_buffer, shuffle_window=100):
+def create_df_nd_mtm(series, window_size, batch_size, shuffle_buffer, shuffle_window=10):
     n = series.shape[1]
     m = series.shape[0]
     dataset = tf.data.Dataset.from_tensor_slices(series)
@@ -70,3 +70,4 @@ def create_df_nd_mtm(series, window_size, batch_size, shuffle_buffer, shuffle_wi
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n], [None, n]))
     return dataset
+
