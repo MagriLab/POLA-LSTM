@@ -95,11 +95,16 @@ def run_lstm(args: argparse.Namespace):
     for epoch in range(1, args.n_epochs+1):
         model.optimizer.learning_rate = decayed_learning_rate(epoch)
         start_time = time.time()
+        train_loss_dd = 0
+        train_loss_pi = 0
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
             loss_dd, loss_pi = train_step_pi(x_batch_train, y_batch_train,
-                                             weight=args.physics_weighing, normalised=args.normalised)
-        train_loss_dd_tracker = np.append(train_loss_dd_tracker, loss_dd)
-        train_loss_pi_tracker = np.append(train_loss_pi_tracker, loss_pi)
+                                            weight=args.physics_weighing, normalised=args.normalised)
+            train_loss_dd += loss_dd
+            train_loss_pi += loss_pi
+        train_loss_dd_tracker = np.append(train_loss_dd_tracker, train_loss_dd/step)
+        train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
+
 
         print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
         print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd, loss_pi))
