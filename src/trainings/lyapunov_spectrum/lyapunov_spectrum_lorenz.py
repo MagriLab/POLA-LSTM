@@ -1,25 +1,26 @@
 import sys
 import time
 import warnings
-
+import einops
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import tensorflow as tf
 sys.path.append('../../../')
+from lstm.utils.config import load_config_to_dict
+from lstm.utils.create_paths import make_img_filepath
+from lstm.utils.supress_tf_warning import tensorflow_shutup
+from lstm.utils.qr_decomp import qr_factorization
+from lstm.preprocessing.data_processing import (df_train_valid_test_split,
+                                                train_valid_test_split)
+from lstm.lstm_model import load_model
 from lstm.closed_loop_tools_mtm import (compute_lyapunov_time_arr,
                                         create_test_window,
                                         prediction_closed_loop)
-from lstm.lstm_model import load_model
-from lstm.preprocessing.data_processing import (df_train_valid_test_split,
-                                                train_valid_test_split)
-from lstm.utils.qr_decomp import qr_factorization
-from lstm.utils.supress_tf_warning import tensorflow_shutup
-from lstm.utils.create_paths import make_img_filepath
-from lstm.utils.config import load_config_to_dict
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
+
 
 
 def lstm_step_comb(u_t, h, c, model, idx, dim=3):
@@ -92,37 +93,98 @@ def step_and_jac(u_t_in, h, c, model, idx, dim):
     return Jac, u_t_out, h_new, c_new
 
 
+def step_and_jac_analytical(u_t, h, c, model, idx, dim):
+    """advances LSTM by one step and computes the Jacobian
+
+    Args:
+        u_t (tf.EagerTensor): differential equation at time t
+        h (tf.EagerTensor): LSTM hidden state at time t
+        c (tf.EagerTensor): LSTM cell state at time t
+        model (keras.Sequential): trained LSTM
+        idx (int): index of current iteration
+
+    Returns:
+        u_t (tf.EagerTensor): coupled Jacobian at time t
+        u_t_out (tf.EagerTensor): LSTM prediction at time t+1
+        h_new (tf.EagerTensor): LSTM hidden state at time t+1
+        c_new (tf.EagerTensor): LSTM cell state at time t+1
+    """
+    n_cell = model.layers[1].get_weights()[0].shape[0]
+    cell_dim = n_cell
+    if idx > window_size:  # for correct Jacobian, must multiply W in the beginning
+        u_t = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
+            0]) + model.layers[1].get_weights()[1], shape=(1, dim))
+    z = tf.keras.backend.dot(u_t, model.layers[0].cell.kernel)
+    z += tf.keras.backend.dot(h, model.layers[0].cell.recurrent_kernel)
+    z = tf.keras.backend.bias_add(z, model.layers[0].cell.bias)
+
+    z0, z1, z2, z3 = tf.split(z, 4, axis=1)
+
+    i = tf.sigmoid(z0)
+    f = tf.sigmoid(z1)
+    c_tilde = tf.tanh(z2)
+    i_c_tilde = i * c_tilde
+    c_new = f * c + i_c_tilde
+    o = tf.sigmoid(z3)
+
+    h_new = o * tf.tanh(c_new)
+
+    Jac_z_h = tf.transpose(tf.matmul(model.layers[1].get_weights()[0], model.layers[0].cell.kernel)+model.layers[0].cell.recurrent_kernel)
+    Jac_i_z = einops.rearrange(tf.linalg.diag(i*(1-i)), '1 i j -> i j')
+    Jac_i_h = tf.matmul(Jac_i_z, Jac_z_h[:cell_dim, :])
+    Jac_f_h = tf.matmul(einops.rearrange(tf.linalg.diag(f*(1-f)), '1 i j -> i j'), Jac_z_h[cell_dim:2*cell_dim, :])
+    Jac_o_h = tf.matmul(einops.rearrange(tf.linalg.diag(o*(1-o)), '1 i j -> i j'), Jac_z_h[3*cell_dim:4*cell_dim, :])
+    Jac_c_t_h = tf.matmul(tf.reshape(tf.linalg.diag(1- c_tilde**2), shape=(cell_dim,cell_dim)), Jac_z_h[2*cell_dim:3*cell_dim, :])
+    Jac_i_c_tilde = (Jac_c_t_h * tf.transpose(i)+ Jac_i_h*tf.transpose(c_tilde))
+    Jac_c_new_c = tf.reshape(tf.linalg.diag(f), shape=(cell_dim,cell_dim)) 
+    Jac_h_new_c = tf.reshape(tf.linalg.diag(o * (1- tf.tanh(c_new)**2)), shape=(cell_dim,cell_dim)) *Jac_c_new_c 
+    Jac_c_new_h = Jac_i_c_tilde + Jac_f_h * tf.transpose(c) 
+    Jac_h_new_h = (tf.matmul(einops.rearrange(tf.linalg.diag(1- tf.tanh(c_new)**2), '1 i j -> i j'), Jac_c_new_h )* tf.transpose(o)+ Jac_o_h*tf.transpose(tf.tanh(c_new)))
+    Jac = tf.concat([tf.concat([Jac_c_new_c, Jac_c_new_h], axis=1),
+            tf.concat([Jac_h_new_c, Jac_h_new_h], axis=1)], axis=0)
+    return Jac, u_t, h_new, c_new
+
+print('Analytical derivative')
+
+
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/lorenz_data/CSV/500000/rk4_500000_norm_trans.csv',
+    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/KS_26_dx35_rk4_37500_stand_3.4_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l63_rk4_10000_norm_trans.csv',
+    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/dim_26_rk4_34200_0.01_stand13.33_trans.csv',
+    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96_dim_64_9_rk4_34200_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
-df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
+df_train, df_valid, df_test = df_train_valid_test_split(mydf[1::2, :], train_ratio=0.5, valid_ratio=0.25)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/rk4/500000/256/model'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l63/10000/d1d3/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
-window_size = model_dict['LORENZ_DATA']['WINDOW_SIZE']
+window_size = model_dict['DATA']['WINDOW_SIZE']
 n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-epochs = model_dict['ML_CONSTRAINTS']['N_EPOCHS']
-dt = model_dict['LORENZ_DATA']['DELTA T']  # time step
+epochs = 5000#model_dict['ML_CONSTRAINTS']['N_EPOCHS']
+dt = model_dict['DATA']['DELTA T']  # time step
 
 make_img_filepath(model_path)
 model = load_model(model_path, epochs, model_dict, dim=dim)
-
+print('--- model successfully loaded---')
 # Compare this prediction with the LE prediction
 n_length = 2*window_size+1
 lyapunov_time, prediction = prediction_closed_loop(
-    model, time_test, df_test, n_length, window_size=window_size, c_lyapunov=0.9
+    model, time_test, df_train, n_length, window_size=window_size, c_lyapunov=0.9
 )
-
+print('--- successfully initialized---')
+# Set up parameters for LE computation
+t_lyap = 0.9**(-1)
+start_time = time.time()
 # Set up parameters for LE computation
 t_lyap = 0.9**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
-N = 110*N_lyap
-Ntransient = max(int(N/10), window_size+2)
+N = 100*N_lyap
+dim=10
+Ntransient = max(int(N/100), window_size+2)
 N_test = N - Ntransient
 print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
 Ttot = np.arange(int(N_test/norm_time)) * dt * norm_time
@@ -144,7 +206,7 @@ test_window = create_test_window(df_test, window_size=window_size)
 u_t = test_window[:, 0, :]
 h = tf.Variable(model.layers[0].get_initial_state(test_window)[0], trainable=False)
 c = tf.Variable(model.layers[0].get_initial_state(test_window)[1], trainable=False)
-pred = np.zeros(shape=(N, dim))
+pred = np.zeros(shape=(N, 2))
 pred[0, :] = u_t
 
 start_time = time.time()
@@ -152,12 +214,19 @@ start_time = time.time()
 # prepare h,c and c from first window
 for i in range(1, window_size+1):
     u_t = test_window[:, i-1, :]
-    u_t, h, c = lstm_step_comb(u_t, h, c, model, i, dim)
+    u_t, h, c = lstm_step_comb(u_t, h, c, model, i, 2)
     pred[i, :] = u_t
+    
+i=window_size
+jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, 2)
+pred[i, :] = u_t
+delta = np.matmul(jacobian, delta)
+q, r = qr_factorization(delta)
+delta = q[:, :dim]
 
 # compute delta on transient
-for i in range(window_size, Ntransient):
-    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, dim)
+for i in range(window_size+1, Ntransient):
+    jacobian, u_t, h, c = step_and_jac_analytical(u_t, h, c, model, i, 2)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
 
@@ -165,11 +234,12 @@ for i in range(window_size, Ntransient):
         q, r = qr_factorization(delta)
         delta = q[:, :dim]
 
+print('Finished on Transient')
 # compute lyapunov exponent based on qr decomposition
 
 for i in range(Ntransient, N):
+    jacobian, u_t, h, c = step_and_jac_analytical(u_t, h, c, model, i, 2)
     indx = i-Ntransient
-    jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, dim)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
     if i % norm_time == 0:
@@ -180,7 +250,7 @@ for i in range(Ntransient, N):
         qq_t[:, :, indx] = q
         LE[indx] = np.abs(np.diag(r[:dim, :dim]))
 
-        if i % 100 == 0:
+        if i % 10000 == 0:
             print(f'Inside closed loop i = {i}')
             if indx != 0:
                 lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (dim, 1)).T
@@ -189,41 +259,45 @@ for i in range(Ntransient, N):
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
 print(f'Total time: {time.time()-start_time}')
 print(f'Final Lyapunov exponents: {lyapunov_exp[-1]}')
+np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
+print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
+
+
 
 np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
 print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
 
-# Create plot and directly save it
-lyapunov_exp_loaded= lyapunov_exp
-lyapunov_exp_num= np.array([8.92681657e-01,  1.00317044e-03, -1.45605834e+01])
-# lyapunov_exp_num = np.array([ 1.03778442e+00,  3.70627282e-03, -1.49920354e+01])
-fig= plt.figure(figsize=(15, 5))
-ax= fig.add_subplot(111)
-lyapunov_time= compute_lyapunov_time_arr(np.arange(0, 100000, 0.01), window_size=window_size, c_lyapunov=0.9)
-plt.plot(lyapunov_time[: len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 0],
-         label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 0]:.3f}')
-plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 1],
-         label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 1]:.3f}')
-plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 2],
-         label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 2]:.3f}')
-for i in range(len(lyapunov_exp_num)):
-    plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], np.ones(
-        shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[i], 'k--')
-    ax.text(lyapunov_time[len(lyapunov_exp_loaded)]+5, lyapunov_exp_num[i], f'{lyapunov_exp_num[i]:.3f}', ha = "center")
-plt.plot(
-    lyapunov_time[: len(lyapunov_exp_loaded)],
-    np.ones(shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[2],
-    'k--', label=f"Euler lyapunov_exp")
-plt.xlabel('LT')
-plt.xlim(0, lyapunov_time[len(lyapunov_exp_loaded)]+10)
-plt.legend(loc="center left", bbox_to_anchor=(1, 0.75))
-plt.title(f"Lyapunov Exponents of the Lorenz System")
-plt.savefig(f'{model_path}{N_test}_dftest_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
-print(f'Plot saved at {model_path}{N_test}_dftest_lyapunox_exp.png')
-plt.close()
+# # Create plot and directly save it
+# lyapunov_exp_loaded= lyapunov_exp
+# lyapunov_exp_num= np.array([8.92681657e-01,  1.00317044e-03, -1.45605834e+01])
+# # lyapunov_exp_num = np.array([ 1.03778442e+00,  3.70627282e-03, -1.49920354e+01])
+# fig= plt.figure(figsize=(15, 5))
+# ax= fig.add_subplot(111)
+# lyapunov_time= compute_lyapunov_time_arr(np.arange(0, 100000, 0.01), window_size=window_size, c_lyapunov=0.9)
+# plt.plot(lyapunov_time[: len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 0],
+#          label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 0]:.3f}')
+# plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 1],
+#          label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 1]:.3f}')
+# # plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 2],
+# #          label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 2]:.3f}')
+# for i in range(len(lyapunov_exp_num)):
+#     plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], np.ones(
+#         shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[i], 'k--')
+#     ax.text(lyapunov_time[len(lyapunov_exp_loaded)]+5, lyapunov_exp_num[i], f'{lyapunov_exp_num[i]:.3f}', ha = "center")
+# plt.plot(
+#     lyapunov_time[: len(lyapunov_exp_loaded)],
+#     np.ones(shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[2],
+#     'k--', label=f"Euler lyapunov_exp")
+# plt.xlabel('LT')
+# plt.xlim(0, lyapunov_time[len(lyapunov_exp_loaded)]+10)
+# plt.legend(loc="center left", bbox_to_anchor=(1, 0.75))
+# plt.title(f"Lyapunov Exponents of the Lorenz System")
+# plt.savefig(f'{model_path}{N_test}_dftest_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+# print(f'Plot saved at {model_path}{N_test}_dftest_lyapunox_exp.png')
+# plt.close()
 
 
-plt.plot(np.arange(0, len(pred)), pred)
-plt.plot(np.arange(window_size, window_size + len(prediction)), prediction, 'k:')
-plt.plot(np.arange(0, len(pred)), df_test.T[window_size:window_size+len(pred), :], '--')
-plt.show()
+# plt.plot(np.arange(0, len(pred)), pred)
+# plt.plot(np.arange(window_size, window_size + len(prediction)), prediction, 'k:')
+# plt.plot(np.arange(0, len(pred)), df_test.T[window_size:window_size+len(pred), :], '--')
+# plt.show()

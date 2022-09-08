@@ -39,34 +39,35 @@ tf.keras.backend.set_floatx('float64')
 warnings.simplefilter(action="ignore", category=FutureWarning)
 lorenz_dim = 26
 
-
-def decayed_learning_rate(step):
-    decay_steps = 1000
-    decay_rate = 0.75
-    initial_learning_rate = args.learning_rate
-    # careful here! step includes batch steps in the tf framework
-    return initial_learning_rate * decay_rate ** (step / decay_steps)
-
-@tf.function
-def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
-    with tf.GradientTape() as tape:
-        one_step_pred = model(x_batch_train, training=True)
-        loss_dd = loss_oloop(y_batch_train, one_step_pred)
-        loss_pi = 0  # norm_loss_pi_many(one_step_pred, norm=normalised)
-        loss_value = loss_dd + weight*loss_pi
-    grads = tape.gradient(loss_value, model.trainable_weights)
-    model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
-    return loss_dd, loss_pi
-
-@tf.function
-def valid_step_pi(x_batch_valid, y_batch_valid, normalised=True):
-    val_logit = model(x_batch_valid, training=False)
-    loss_dd = loss_oloop(y_batch_valid, val_logit)
-    loss_pi = 0  # norm_loss_pi_many(val_logit, norm=normalised)
-    return loss_dd, loss_pi
-
-
 def run_lstm(args: argparse.Namespace):
+    
+
+    def decayed_learning_rate(step):
+        decay_steps = 1000
+        decay_rate = 0.75
+        initial_learning_rate = args.learning_rate
+        # careful here! step includes batch steps in the tf framework
+        return initial_learning_rate * decay_rate ** (step / decay_steps)
+
+    @tf.function
+    def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
+        with tf.GradientTape() as tape:
+            one_step_pred = model(x_batch_train, training=True)
+            loss_dd = loss_oloop(y_batch_train, one_step_pred)
+            loss_pi = 0  # norm_loss_pi_many(one_step_pred, norm=normalised)
+            loss_value = loss_dd + weight*loss_pi
+        grads = tape.gradient(loss_value, model.trainable_weights)
+        model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
+        return loss_dd, loss_pi
+
+    @tf.function
+    def valid_step_pi(x_batch_valid, y_batch_valid, normalised=True):
+        val_logit = model(x_batch_valid, training=False)
+        loss_dd = loss_oloop(y_batch_valid, val_logit)
+        loss_pi = 0  # norm_loss_pi_many(val_logit, norm=normalised)
+        return loss_dd, loss_pi
+
+
 
     reset_random_seeds()
 
@@ -78,8 +79,8 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.25, valid_ratio=0.1)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.25, valid_ratio=0.1)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -95,14 +96,18 @@ def run_lstm(args: argparse.Namespace):
     for epoch in range(1, args.n_epochs+1):
         model.optimizer.learning_rate = decayed_learning_rate(epoch)
         start_time = time.time()
+        train_loss_dd = 0
+        train_loss_pi = 0
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
             loss_dd, loss_pi = train_step_pi(x_batch_train, y_batch_train,
-                                             weight=args.physics_weighing, normalised=args.normalised)
-        train_loss_dd_tracker = np.append(train_loss_dd_tracker, loss_dd)
-        train_loss_pi_tracker = np.append(train_loss_pi_tracker, loss_pi)
+                                            weight=args.physics_weighing, normalised=args.normalised)
+            train_loss_dd += loss_dd
+            train_loss_pi += loss_pi
+        train_loss_dd_tracker = np.append(train_loss_dd_tracker, train_loss_dd/step)
+        train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
 
         print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-        print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd, loss_pi))
+        print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (train_loss_dd/step, train_loss_pi/step))
 
         valid_loss_dd = 0
         valid_loss_pi = 0
@@ -113,7 +118,7 @@ def run_lstm(args: argparse.Namespace):
         valid_loss_dd_tracker = np.append(valid_loss_dd_tracker, valid_loss_dd/val_step)
         valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, valid_loss_pi/val_step)
         print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" %
-              (valid_loss_dd / val_step, valid_loss_pi / val_step))
+            (valid_loss_dd / val_step, valid_loss_pi / val_step))
 
         if epoch % args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
@@ -139,37 +144,32 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 
-parser.add_argument('--n_epochs', type=int, default=5000)
-parser.add_argument('--epoch_steps', type=int, default=250)
-parser.add_argument('--epoch_iter', type=int, default=10)
+parser.add_argument('--n_epochs', type=int, default=1000)
+parser.add_argument('--epoch_steps', type=int, default=25)
 parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--n_cells', type=int, default=200)
 parser.add_argument('--oloop_train', default=True, action='store_true')
-parser.add_argument('--cloop_train', default=False, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--l2_regularisation', type=float, default=0)
 parser.add_argument('--dropout', type=float, default=0.0)
-parser.add_argument('--early_stop', default=False, action='store_true')
+ 
 parser.add_argument('--early_stop_patience', type=int, default=0)
-parser.add_argument('--physics_informed', default=True, action='store_true')
 parser.add_argument('--physics_weighing', type=float, default=0.0)
-
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=10)
 parser.add_argument('--t_end', type=int, default=1760)
-parser.add_argument('--delta_t', type=int, default=0.01)
+parser.add_argument('--delta_t', type=float, default=0.01)
 parser.add_argument('--total_n', type=float, default=17600)
 parser.add_argument('--window_size', type=int, default=25)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
-
+parser.add_argument('--train_ratio', type=float, default=0.5)
+parser.add_argument('--valid_ratio', type=float, default=0.1)
 
 # arguments to define paths
-# parser.add_argument( '--experiment_path', type=Path, required=True)
-# parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
-# parser.add_argument('--log-board_path', type=Path, required=True)
+
 parser.add_argument('-dp', '--data_path', type=Path, required=True)
 parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
@@ -186,7 +186,7 @@ run_lstm(parsed_args)
 
 # python many_to_many_l96.py -dp ../models/l96/D26/25-200/ -cp ../diff_dyn_sys/lorenz96/CSV/dim_26_rk4_34200_0.01_stand13.33_trans.csv
 
-# python many_to_many_l96.py -dp ../models/KS/D26/90000/25-200/ -cp D26/KS_26_dx35_rk4_90000_stand_3.42_deltat_0.01_trans.csv
+# python many_to_many_l96.py -dp ../models/KS/D26/90000/45000/25-200/ -cp D26/KS_26_dx35_rk4_90000_stand_3.42_deltat_0.01_trans.csv
 
 # python many_to_many_l96.py -dp ../models/l96/D20/42500/25-50/ -cp ../diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_42500_0.01_stand13.33_trans.csv
 

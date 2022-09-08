@@ -101,10 +101,10 @@ model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/model
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
-window_size = model_dict['LORENZ_DATA']['WINDOW_SIZE']
+window_size = model_dict['DATA']['WINDOW_SIZE']
 n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
 epochs = model_dict['ML_CONSTRAINTS']['N_EPOCHS']
-dt = model_dict['LORENZ_DATA']['DELTA T']  # time step
+dt = model_dict['DATA']['DELTA T']  # time step
 
 make_img_filepath(model_path)
 model = load_model(model_path, epochs, model_dict, dim=dim)

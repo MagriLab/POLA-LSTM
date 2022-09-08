@@ -54,8 +54,8 @@ def run_lstm(args: argparse.Namespace):
 
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[2:, :], train_ratio=0.5, valid_ratio=0.25)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
 
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -157,19 +157,19 @@ parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=5000)
 parser.add_argument('--epoch_steps', type=int, default=500)
-parser.add_argument('--epoch_iter', type=int, default=10)
+ 
 parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--n_cells', type=int, default=10)
 parser.add_argument('--oloop_train', default=True, action='store_true')
-parser.add_argument('--cloop_train', default=False, action='store_true')
+ 
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--l2_regularisation', type=float, default=0)
 parser.add_argument('--dropout', type=float, default=0.0)
-parser.add_argument('--early_stop', default=False, action='store_true')
+ 
 parser.add_argument('--early_stop_patience', type=int, default=10)
-parser.add_argument('--physics_informed', default=True, action='store_true')
+ 
 parser.add_argument('--physics_weighing', type=float, default=0.0)
 
 parser.add_argument('--normalised', default=False, action='store_true')
@@ -180,6 +180,8 @@ parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=8000)
 parser.add_argument('--window_size', type=int, default=100)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
+parser.add_argument('--train_ratio', type=float, default=0.5)
+parser.add_argument('--valid_ratio', type=float, default=0.1)
 # arguments to define paths
 # parser.add_argument( '--experiment_path', type=Path, required=True)
 # parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
