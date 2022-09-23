@@ -148,23 +148,21 @@ print('Analytical derivative')
 
 
 mydf = np.genfromtxt(
-    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/KS_26_dx35_rk4_37500_stand_3.4_trans.csv',
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l63_rk4_10000_norm_trans.csv',
-    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/dim_26_rk4_34200_0.01_stand13.33_trans.csv',
-    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96_dim_64_9_rk4_34200_0.01_stand13.33_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_26_dx35_rk4_90000_stand_3.6_deltat_0.25_trans.csv',
     delimiter=",").astype(
     np.float64)
-df_train, df_valid, df_test = df_train_valid_test_split(mydf[1::2, :], train_ratio=0.5, valid_ratio=0.25)
-time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
+df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::2], train_ratio=0.5, valid_ratio=0.25)
+time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::2], train_ratio=0.5, valid_ratio=0.25)
 
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l63/10000/d1d3/'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/D26/90000/0.25/45000/25-200/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
 window_size = model_dict['DATA']['WINDOW_SIZE']
 n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-epochs = 5000#model_dict['ML_CONSTRAINTS']['N_EPOCHS']
+epochs = 450 #model_dict['ML_CONSTRAINTS']['N_EPOCHS']
 dt = model_dict['DATA']['DELTA T']  # time step
+
 
 make_img_filepath(model_path)
 model = load_model(model_path, epochs, model_dict, dim=dim)
@@ -176,10 +174,10 @@ lyapunov_time, prediction = prediction_closed_loop(
 )
 print('--- successfully initialized---')
 # Set up parameters for LE computation
-t_lyap = 0.9**(-1)
+t_lyap = 0.09**(-1)
 start_time = time.time()
 # Set up parameters for LE computation
-t_lyap = 0.9**(-1)
+t_lyap = 0.09**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
 N = 100*N_lyap
@@ -267,37 +265,3 @@ print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
 np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
 print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
 
-# # Create plot and directly save it
-# lyapunov_exp_loaded= lyapunov_exp
-# lyapunov_exp_num= np.array([8.92681657e-01,  1.00317044e-03, -1.45605834e+01])
-# # lyapunov_exp_num = np.array([ 1.03778442e+00,  3.70627282e-03, -1.49920354e+01])
-# fig= plt.figure(figsize=(15, 5))
-# ax= fig.add_subplot(111)
-# lyapunov_time= compute_lyapunov_time_arr(np.arange(0, 100000, 0.01), window_size=window_size, c_lyapunov=0.9)
-# plt.plot(lyapunov_time[: len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 0],
-#          label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 0]:.3f}')
-# plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 1],
-#          label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 1]:.3f}')
-# # plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], lyapunov_exp_loaded[:, 2],
-# #          label = f'LSTM lyapunov_exp +, final value: {lyapunov_exp_loaded[-1, 2]:.3f}')
-# for i in range(len(lyapunov_exp_num)):
-#     plt.plot(lyapunov_time[:len(lyapunov_exp_loaded)], np.ones(
-#         shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[i], 'k--')
-#     ax.text(lyapunov_time[len(lyapunov_exp_loaded)]+5, lyapunov_exp_num[i], f'{lyapunov_exp_num[i]:.3f}', ha = "center")
-# plt.plot(
-#     lyapunov_time[: len(lyapunov_exp_loaded)],
-#     np.ones(shape=(1, len(lyapunov_exp_loaded))).T * lyapunov_exp_num[2],
-#     'k--', label=f"Euler lyapunov_exp")
-# plt.xlabel('LT')
-# plt.xlim(0, lyapunov_time[len(lyapunov_exp_loaded)]+10)
-# plt.legend(loc="center left", bbox_to_anchor=(1, 0.75))
-# plt.title(f"Lyapunov Exponents of the Lorenz System")
-# plt.savefig(f'{model_path}{N_test}_dftest_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
-# print(f'Plot saved at {model_path}{N_test}_dftest_lyapunox_exp.png')
-# plt.close()
-
-
-# plt.plot(np.arange(0, len(pred)), pred)
-# plt.plot(np.arange(window_size, window_size + len(prediction)), prediction, 'k:')
-# plt.plot(np.arange(0, len(pred)), df_test.T[window_size:window_size+len(pred), :], '--')
-# plt.show()
