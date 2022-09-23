@@ -43,7 +43,8 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config['DATA']['TOTAL_N'] = args.total_n
     config['DATA']['WINDOW_SIZE'] = args.window_size
     config['DATA']['SIGNAL TO NOISE RATIO'] = args.signal_noise_ratio
-
+    config['DATA']['TRAINING RATIO'] = args.train_ratio
+    config['DATA']['VALID RATIO'] = args.valid_ratio
     with open(config_path, 'w+') as f:
         yaml.dump(config, f)
 
