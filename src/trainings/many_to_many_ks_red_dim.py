@@ -5,7 +5,7 @@ import sys
 import time
 import warnings
 from pathlib import Path
-
+import random
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -37,21 +37,23 @@ plt.rcParams["figure.facecolor"] = "w"
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-def create_df_nd_md_mtm(series, window_size, batch_size, shuffle_buffer, idx_skip=5, shuffle_window=10):
+
+def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, idx_skip=5, shuffle_window=10):
     n = series.shape[1]
     m = series.shape[0]
-    print(n, m)
+    random.seed(0)
+    batch_shape=series[:, ::idx_skip].shape
+    idx_lst = random.sample(range(n), batch_shape[1])
+    idx_lst.sort()
     dataset = tf.data.Dataset.from_tensor_slices(series)
     dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
     dataset = dataset.shuffle(m*shuffle_window)
     dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
     dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (window[:-1, ::idx_skip], window[1:])
+        lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
     )
-    batch_shape=series[:, ::idx_skip].shape
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, batch_shape[1]], [None, n]))
     return dataset
-
 
 
 def run_lstm(args: argparse.Namespace):
@@ -71,8 +73,8 @@ def run_lstm(args: argparse.Namespace):
     ks_dim = df_train.shape[0]
     print(f'Dimension of system {ks_dim}')
     # Windowing
-    train_dataset = create_df_nd_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], idx_skip=6)
-    valid_dataset = create_df_nd_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, idx_skip=6)
+    train_dataset = create_df_nd_random_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], idx_skip=5)
+    valid_dataset = create_df_nd_random_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, idx_skip=5)
     for batch, label in train_dataset.take(1):
         print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
     model = build_pi_model(args.n_cells, dim=ks_dim)
@@ -214,4 +216,4 @@ run_lstm(parsed_args)
 # python many_to_many_ks.py -dp ../models/ks/D128-100/40000/20-80/ -cp KS_128_dx100_rk4_50000_stand_3.84_trans.csv
 
 
-# python many_to_many_ks_red_dim.py -dp ../models/KS/D160-6n/42500/25-200/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_160_dx60_rk4_99000_stand_3.52_deltat_0.25_trans.csv
+# python many_to_many_ks_red_dim.py -dp ../models/KS/D160-5n-random/42500/25-200/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_160_dx60_rk4_99000_stand_3.52_deltat_0.25_trans.csv
