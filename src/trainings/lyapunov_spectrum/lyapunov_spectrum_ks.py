@@ -79,7 +79,7 @@ def lstm_step_comb(u_t, h, c, model, idx, dim=3):
         u_t = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
             0]) + model.layers[1].get_weights()[1], shape=(1, dim))
         u_t_temp = u_t
-        u_t = u_t[:, ::4]
+        u_t = u_t[:, ::idx_skip]
     z = tf.keras.backend.dot(u_t, model.layers[0].cell.kernel)
     z += tf.keras.backend.dot(h, model.layers[0].cell.recurrent_kernel)
     z = tf.keras.backend.bias_add(z, model.layers[0].cell.bias)
@@ -154,7 +154,7 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
         u_t = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
             0]) + model.layers[1].get_weights()[1], shape=(1, dim))
         u_t_temp = u_t
-        u_t = u_t[:, ::4]
+        u_t = u_t[:, ::idx_skip]
     z = tf.keras.backend.dot(u_t, model.layers[0].cell.kernel)
     z += tf.keras.backend.dot(h, model.layers[0].cell.recurrent_kernel)
     z = tf.keras.backend.bias_add(z, model.layers[0].cell.bias)
@@ -170,7 +170,7 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
 
     h_new = o * tf.tanh(c_new)
 
-    Jac_z_h = tf.transpose(tf.matmul(model.layers[1].get_weights()[0][:, ::4], model.layers[0].cell.kernel)+model.layers[0].cell.recurrent_kernel)
+    Jac_z_h = tf.transpose(tf.matmul(model.layers[1].get_weights()[0][:, ::idx_skip], model.layers[0].cell.kernel)+model.layers[0].cell.recurrent_kernel)
     Jac_i_z = einops.rearrange(tf.linalg.diag(i*(1-i)), '1 i j -> i j')
     Jac_i_h = tf.matmul(Jac_i_z, Jac_z_h[:cell_dim, :])
     Jac_f_h = tf.matmul(einops.rearrange(tf.linalg.diag(f*(1-f)), '1 i j -> i j'), Jac_z_h[cell_dim:2*cell_dim, :])
@@ -195,8 +195,8 @@ mydf = np.genfromtxt(
     np.float64)
 df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=0.5, valid_ratio=0.25)
 time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
-
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/D160-4n/42500/25-200/'
+idx_skip = 6
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/D160-{idx_skip}n/42500/25-200/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
@@ -210,7 +210,7 @@ make_img_filepath(model_path)
 model = load_model(model_path, epochs, model_dict, dim=dim)
 print('--- model successfully loaded---')
 # Compare this prediction with the LE prediction
-test_window = create_test_window(df_test[::4, :])
+test_window = create_test_window(df_test[::idx_skip, :])
 model.predict(test_window)
 print('--- successfully initialized---')
 # Set up parameters for LE computation
@@ -248,16 +248,16 @@ c = tf.Variable(model.layers[0].get_initial_state(test_window)[1], trainable=Fal
 pred = np.zeros(shape=(N, dim))
 pred[0, :] = u_t
 
-start_time = time.time()
+start_time_0 = time.time()
 
 # prepare h,c and c from first window
 for i in range(1, window_size+1):
     u_t = test_window[:, i-1, :]
-    u_t, h, c = lstm_step_comb(u_t[:, ::4], h, c, model, i, dim)
+    u_t, h, c = lstm_step_comb(u_t[:, ::idx_skip], h, c, model, i, dim)
     pred[i, :] = u_t
     
 i=window_size
-jacobian, u_t, h, c = step_and_jac(u_t[:, ::4], h, c, model, i, dim)
+jacobian, u_t, h, c = step_and_jac(u_t[:, ::idx_skip], h, c, model, i, dim)
 pred[i, :] = u_t
 delta = np.matmul(jacobian, delta)
 q, r = qr_factorization(delta)
@@ -265,7 +265,7 @@ delta = q[:, :dim]
 
 # compute delta on transient
 for i in range(window_size+1, Ntransient):
-    jacobian, u_t, h, c = step_and_jac_analytical(u_t[:, ::4], h, c, model, i, dim)
+    jacobian, u_t, h, c = step_and_jac_analytical(u_t[:, ::idx_skip], h, c, model, i, dim)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
 
@@ -277,7 +277,7 @@ print('Finished on Transient')
 # compute lyapunov exponent based on qr decomposition
 start_time=time.time()
 for i in range(Ntransient, N):
-    jacobian, u_t, h, c = step_and_jac_analytical(u_t[:, ::4], h, c, model, i, dim)
+    jacobian, u_t, h, c = step_and_jac_analytical(u_t[:, ::idx_skip], h, c, model, i, dim)
     indx = i-Ntransient
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
@@ -298,7 +298,7 @@ for i in range(Ntransient, N):
                 start_time = time.time()
 
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T
-print(f'Total time: {time.time()-start_time}')
+print(f'Total time: {time.time()-start_time_0}')
 print(f'Final Lyapunov exponents: {lyapunov_exp[-1]}')
 np.savetxt(f'{model_path}lyapunov_exp_{N_test}.txt', lyapunov_exp)
 print(f'lyapunov_exp saved at {model_path}lyapunov_exp_{N_test}.txt')
