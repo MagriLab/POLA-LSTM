@@ -162,19 +162,15 @@ parser = argparse.ArgumentParser(description='Open Loop')
 # arguments for configuration parameters
 parser.add_argument('--n_epochs', type=int, default=5000)
 parser.add_argument('--epoch_steps', type=int, default=500)
- 
 parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--n_cells', type=int, default=10)
 parser.add_argument('--oloop_train', default=True, action='store_true')
- 
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--l2_regularisation', type=float, default=0)
 parser.add_argument('--dropout', type=float, default=0.0)
- 
 parser.add_argument('--early_stop_patience', type=int, default=10)
- 
 parser.add_argument('--physics_weighing', type=float, default=0.0)
 
 parser.add_argument('--normalised', default=False, action='store_true')
@@ -188,9 +184,6 @@ parser.add_argument('--signal_noise_ratio', type=int, default=0)
 parser.add_argument('--train_ratio', type=float, default=0.5)
 parser.add_argument('--valid_ratio', type=float, default=0.1)
 # arguments to define paths
-# parser.add_argument( '--experiment_path', type=Path, required=True)
-# parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
-# parser.add_argument('--log-board_path', type=Path, required=True)
 parser.add_argument('-dp', '--data_path', type=Path, required=True)
 parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
@@ -204,8 +197,3 @@ generate_config(yaml_config_path, parsed_args)
 print('Physics weight', parsed_args.physics_weighing)
 run_lstm(parsed_args)
 #  python many_to_many.py -dp ../models/euler/test/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-diff_loss/model/10000/weights
-# python many_to_many.py -dp ../models/euler/10000-many-noise-10/pi-lstm001/ -cp ../lorenz_data/CSV/10000/euler_10000_norm_trans_noise_10.csv -idp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/euler/10000-many-noise80/model/10000/weights
-# python many_to_many.py -dp ../models/cdv/test/ -cp ../cdv_data/CSV/euler_37500_trans.csv
-
-
-# python many_to_many.py -dp ../models/l63/10000/d2d3/ -cp l63_rk4_10000_norm_trans.csv
