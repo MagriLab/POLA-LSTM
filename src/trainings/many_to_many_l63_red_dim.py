@@ -45,7 +45,7 @@ def create_df_nd_md_mtm(series, window_size, batch_size, shuffle_buffer, idx_ski
     dataset = dataset.shuffle(m*shuffle_window)
     dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
     dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (window[:-1, 1:2], window[1:])
+        lambda window: (window[:-1, 0:1], window[1:])
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 1], [None, n]))
     return dataset
@@ -160,4 +160,4 @@ print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
 
-# python many_to_many_l63_red_dim.py -dp ../models/l63/some_test/ -cp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz63/CSV/100000/rk4_100000_norm_trans.csv
+# python many_to_many_l63_red_dim.py -dp ../models/l63/100000/100-10/ -cp /Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz63/CSV/100000/rk4_100000_norm_trans.csv
