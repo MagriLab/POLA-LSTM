@@ -1,9 +1,6 @@
 
 import argparse
-import datetime
-import importlib
 import os
-import random
 import sys
 import time
 import warnings
@@ -12,14 +9,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import tensorflow_datasets as tfds
-import torch
 sys.path.append('../..')
 
 from lstm.loss import loss_oloop, norm_pi_loss, norm_pi_loss_two_step
 from lstm.lstm_model import build_pi_model
 from lstm.postprocessing import plots
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard
 from lstm.preprocessing.data_processing import (create_df_3d,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)

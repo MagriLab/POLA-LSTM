@@ -38,12 +38,13 @@ def load_model(model_path, epochs, model_dict, dim=3):
     model.load_weights(model_path + "model/" + str(epochs) + "/weights").expect_partial()
     return model
 
+
 @tf.function
 def train_step_dd(model, x_batch_train, y_batch_train, weight=1):
     with tf.GradientTape() as tape:
         one_step_pred = model(x_batch_train, training=True)
         mse = tf.keras.losses.MeanSquaredError()
-        loss_dd = mse(y_batch_train, one_step_pred) 
+        loss_dd = mse(y_batch_train, one_step_pred)
         loss_pi = 0
         loss_value = loss_dd + weight*loss_pi
     grads = tape.gradient(loss_value, model.trainable_weights)
@@ -55,8 +56,8 @@ def train_step_dd(model, x_batch_train, y_batch_train, weight=1):
 def valid_step_dd(model, x_batch_valid, y_batch_valid):
     val_logit = model(x_batch_valid, training=False)
     mse = tf.keras.losses.MeanSquaredError()
-    loss_dd = mse(y_batch_valid, val_logit) 
-    loss_pi = 0 #mse(tf.math.reduce_sum(x_batch_valid, axis=2), tf.math.reduce_sum(val_logit, axis=2))  
+    loss_dd = mse(y_batch_valid, val_logit)
+    loss_pi = 0  # mse(tf.math.reduce_sum(x_batch_valid, axis=2), tf.math.reduce_sum(val_logit, axis=2))
     return loss_dd, loss_pi
 
 

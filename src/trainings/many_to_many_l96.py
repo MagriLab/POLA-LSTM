@@ -17,7 +17,7 @@ from lstm.preprocessing.data_processing import (create_df_nd_mtm,
                                                 train_valid_test_split)
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.utils.config import generate_config
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard
 from lstm.postprocessing import plots_mtm
 from lstm.lstm_model import build_pi_model
 from lstm.loss import loss_oloop, norm_loss_pi_many
@@ -151,10 +151,10 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 
-parser.add_argument('--n_epochs', type=int, default=1000)
-parser.add_argument('--epoch_steps', type=int, default=100)
+parser.add_argument('--n_epochs', type=int, default=5000)
+parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=200)
+parser.add_argument('--n_cells', type=int, default=50)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
@@ -166,19 +166,17 @@ parser.add_argument('--early_stop_patience', type=int, default=0)
 parser.add_argument('--physics_weighing', type=float, default=0.0)
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
-parser.add_argument('--t_trans', type=int, default=1000)
-parser.add_argument('--t_end', type=int, default=600)
+parser.add_argument('--t_trans', type=int, default=100)
+parser.add_argument('--t_end', type=int, default=425)
 parser.add_argument('--delta_t', type=float, default=0.01)
-parser.add_argument('--total_n', type=float, default=60000)
-parser.add_argument('--window_size', type=int, default=100)
+parser.add_argument('--total_n', type=float, default=42500)
+parser.add_argument('--window_size', type=int, default=25)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 parser.add_argument('--train_ratio', type=float, default=0.25)
-parser.add_argument('--valid_ratio', type=float, default=0.05)
+parser.add_argument('--valid_ratio', type=float, default=0.1)
 
 # arguments to define paths
-# parser.add_argument( '--experiment_path', type=Path, required=True)
 # parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
-# parser.add_argument('--log-board_path', type=Path, required=True)
 parser.add_argument('-dp', '--data_path', type=Path, required=True)
 parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
@@ -192,4 +190,4 @@ generate_config(yaml_config_path, parsed_args)
 print(f'Physics weight {parsed_args.physics_weighing}')
 run_lstm(parsed_args)
 
-# python many_to_many_dp.py -dp ../models/dp/60000/100-15/ -cp ../diff_dyn_sys/double_pendulum/CSV/double_pendulum_rk4_59001_stand_1.49_deltat_600.0_trans.csv
+# python many_to_many_ks.py -dp ../models/ks/D3-40_34/60000/50-25/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_40_to_50_dx200_rk4_240000_stand_3.76_trans.csv

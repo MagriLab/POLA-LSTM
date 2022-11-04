@@ -148,20 +148,21 @@ print('Analytical derivative')
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_26_dx35_rk4_90000_stand_3.6_deltat_0.25_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/l63_rk4_10000_norm_trans.csv',
+    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_80_2n_dx60_rk4_99000_stand_3.47_deltat_0.25_trans.csv',
     delimiter=",").astype(
     np.float64)
-df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::2], train_ratio=0.5, valid_ratio=0.25)
-time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::2], train_ratio=0.5, valid_ratio=0.25)
+df_train, df_valid, df_test = df_train_valid_test_split(mydf[2:, :], train_ratio=0.5, valid_ratio=0.25)
+time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=0.5, valid_ratio=0.25)
 
-model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/D26/90000/0.25/45000/25-200/'
+model_path = f'/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l63/10000/100-10/d2d3/'
 model_dict = load_config_to_dict(model_path)
 
 dim = df_train.shape[0]
-window_size = model_dict['DATA']['WINDOW_SIZE']
+window_size = model_dict['LORENZ_DATA']['WINDOW_SIZE']
 n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-epochs = 450 #model_dict['ML_CONSTRAINTS']['N_EPOCHS']
-dt = model_dict['DATA']['DELTA T']  # time step
+epochs = model_dict['ML_CONSTRAINTS']['N_EPOCHS']
+dt = model_dict['LORENZ_DATA']['DELTA T']  # time step
 
 
 make_img_filepath(model_path)
@@ -174,30 +175,30 @@ lyapunov_time, prediction = prediction_closed_loop(
 )
 print('--- successfully initialized---')
 # Set up parameters for LE computation
-t_lyap = 0.09**(-1)
+t_lyap = 0.9**(-1)
 start_time = time.time()
 # Set up parameters for LE computation
-t_lyap = 0.09**(-1)
+t_lyap = 0.9**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
-N = 100*N_lyap
-dim=10
+N = 1000*N_lyap
+dim=3
 Ntransient = max(int(N/100), window_size+2)
 N_test = N - Ntransient
 print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
 Ttot = np.arange(int(N_test/norm_time)) * dt * norm_time
 N_test_norm = int(N_test/norm_time)
 print(f'N_test_norm: {N_test_norm}')
-
+dim_le = 3
 # Lyapunov Exponents timeseries
-LE = np.zeros((N_test_norm, dim))
+LE = np.zeros((N_test_norm, dim_le))
 # q and r matrix recorded in time
-qq_t = np.zeros((n_cell+n_cell, dim, N_test_norm))
-rr_t = np.zeros((dim, dim, N_test_norm))
+qq_t = np.zeros((n_cell+n_cell, dim_le, N_test_norm))
+rr_t = np.zeros((dim_le, dim_le, N_test_norm))
 np.random.seed(1)
-delta = scipy.linalg.orth(np.random.rand(n_cell+n_cell, dim))
+delta = scipy.linalg.orth(np.random.rand(n_cell+n_cell, dim_le))
 q, r = qr_factorization(delta)
-delta = q[:, :dim]
+delta = q[:, :dim_le]
 
 # initialize model and test window
 test_window = create_test_window(df_test, window_size=window_size)
@@ -220,7 +221,7 @@ jacobian, u_t, h, c = step_and_jac(u_t, h, c, model, i, 2)
 pred[i, :] = u_t
 delta = np.matmul(jacobian, delta)
 q, r = qr_factorization(delta)
-delta = q[:, :dim]
+delta = q[:, :dim_le]
 
 # compute delta on transient
 for i in range(window_size+1, Ntransient):
@@ -230,7 +231,7 @@ for i in range(window_size+1, Ntransient):
 
     if i % norm_time == 0:
         q, r = qr_factorization(delta)
-        delta = q[:, :dim]
+        delta = q[:, :dim_le]
 
 print('Finished on Transient')
 # compute lyapunov exponent based on qr decomposition
@@ -242,16 +243,16 @@ for i in range(Ntransient, N):
     delta = np.matmul(jacobian, delta)
     if i % norm_time == 0:
         q, r = qr_factorization(delta)
-        delta = q[:, :dim]
+        delta = q[:, :dim_le]
 
         rr_t[:, :, indx] = r
         qq_t[:, :, indx] = q
-        LE[indx] = np.abs(np.diag(r[:dim, :dim]))
+        LE[indx] = np.abs(np.diag(r[:dim_le, :dim_le]))
 
         if i % 10000 == 0:
             print(f'Inside closed loop i = {i}')
             if indx != 0:
-                lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (dim, 1)).T
+                lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (dim_le, 1)).T
                 print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
 
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (dim, 1)).T

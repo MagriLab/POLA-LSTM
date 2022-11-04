@@ -33,7 +33,7 @@ from lstm.utils.config import generate_config
 from lstm.preprocessing.data_processing import (create_df_nd_mtm,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard
 from lstm.postprocessing import plots_mtm
 from lstm.lstm_model import build_pi_model
 from lstm.loss import loss_oloop

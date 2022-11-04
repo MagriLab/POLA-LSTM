@@ -1,6 +1,5 @@
 import os
 import time
-
 import numpy as np
 import tensorflow as tf
 
@@ -41,7 +40,7 @@ def loss_arr_to_tensorboard(
 # # updated save loss fn
 
 # import csv
-# from pathlib import Path 
+# from pathlib import Path
 
 # def save_loss_to_csv(csv_path: Path, data_loss: LossObject):
 
@@ -58,13 +57,10 @@ def loss_arr_to_tensorboard(
 #         csv_writer.writerow(row_to_save)
 
 
-
-def save_and_update_loss_txt(logs_checkpoint, train_loss_dd_unsaved, train_loss_pi_unsaved, valid_loss_dd_unsaved, valid_loss_pi_unsaved):
-    ## open the loss logs and append the unseen losses
-
-    if not os.path.exists(logs_checkpoint):
-        os.makedirs(logs_checkpoint)
-
+def save_and_update_loss_txt(
+        logs_checkpoint, train_loss_dd_unsaved, train_loss_pi_unsaved, valid_loss_dd_unsaved, valid_loss_pi_unsaved):
+    # open the loss logs and append the unseen losses
+    logs_checkpoint.mkdir(parents=True, exist_ok=True)
     open_txt_add_arr(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_unsaved)
     open_txt_add_arr(logs_checkpoint/f"training_loss_pi.txt", train_loss_pi_unsaved)
     open_txt_add_arr(logs_checkpoint/f"valid_loss_dd.txt", valid_loss_dd_unsaved)
@@ -72,6 +68,6 @@ def save_and_update_loss_txt(logs_checkpoint, train_loss_dd_unsaved, train_loss_
 
 
 def open_txt_add_arr(filename, array):
-    f = open(filename,'a')
+    f = open(filename, 'a')
     np.savetxt(f, array)
     f.close()

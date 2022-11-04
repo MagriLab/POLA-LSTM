@@ -15,7 +15,7 @@ from lstm.lorenz import fixpoints
 from lstm.loss import loss_oloop, norm_loss_pi_many
 from lstm.lstm_model import build_pi_model
 from lstm.postprocessing import plots_mtm
-from lstm.postprocessing.tensorboard_converter import loss_arr_to_tensorboard
+from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard
 from lstm.preprocessing.data_processing import (create_df_nd_mtm, 
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
@@ -75,8 +75,6 @@ def run_lstm(args: argparse.Namespace):
     def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
         with tf.GradientTape() as tape:
             one_step_pred = model(x_batch_train, training=True)
-            # new_batch = split_window_label(append_label_to_window(x_batch_train, one_step_pred))
-            # two_step_pred = model(new_batch, training=True)
             loss_dd = loss_oloop(y_batch_train, one_step_pred)
             loss_pi = 0.0 #norm_loss_pi_many(one_step_pred, norm=normalised)
             loss_value = loss_dd + weight*loss_pi
