@@ -215,8 +215,7 @@ pip-selfcheck.json
 logs/
 notebooks/
 *.ipynb
-CSV/
-models/
+V/
 wandb/
 diff_dyn_sys/
 src/trainings/Miniconda3-latest-Linux-x86_64.sh

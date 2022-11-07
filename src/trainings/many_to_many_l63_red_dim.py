@@ -21,7 +21,7 @@ from lstm.preprocessing.data_processing import (df_train_valid_test_split,
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+    tf.config.set_visible_devices(physical_devices[0], 'GPU')
     logical_devices = tf.config.list_logical_devices('GPU')
     print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
@@ -45,7 +45,7 @@ def create_df_nd_md_mtm(series, window_size, batch_size, shuffle_buffer, idx_ski
     dataset = dataset.shuffle(m*shuffle_window)
     dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
     dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (window[:-1, 0:1], window[1:])
+            lambda window: (window[:-1, 2:3], window[1:])
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 1], [None, n]))
     return dataset
@@ -127,7 +127,7 @@ parser = argparse.ArgumentParser(description='Open Loop')
 parser.add_argument('--n_epochs', type=int, default=5000)
 parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=10)
+parser.add_argument('--n_cells', type=int, default=50)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
@@ -143,7 +143,7 @@ parser.add_argument('--t_trans', type=int, default=20)
 parser.add_argument('--t_end', type=int, default=100)
 parser.add_argument('--delta_t', type=int, default=0.01)
 parser.add_argument('--total_n', type=float, default=8000)
-parser.add_argument('--window_size', type=int, default=100)
+parser.add_argument('--window_size', type=int, default=20)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
 parser.add_argument('--train_ratio', type=float, default=0.25)
 parser.add_argument('--valid_ratio', type=float, default=0.1)
