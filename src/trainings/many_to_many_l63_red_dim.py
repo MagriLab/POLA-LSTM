@@ -45,9 +45,9 @@ def create_df_nd_md_mtm(series, window_size, batch_size, shuffle_buffer, idx_ski
     dataset = dataset.shuffle(m*shuffle_window)
     dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
     dataset = dataset.shuffle(shuffle_buffer).map(
-            lambda window: (window[:-1, 2:3], window[1:])
+            lambda window: (window[:-1, 0:2], window[1:])
     )
-    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 1], [None, n]))
+    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 2], [None, n]))
     return dataset
 
 
@@ -124,7 +124,7 @@ def run_lstm(args: argparse.Namespace):
 
 parser = argparse.ArgumentParser(description='Open Loop')
 
-parser.add_argument('--n_epochs', type=int, default=5000)
+parser.add_argument('--n_epochs', type=int, default=10000)
 parser.add_argument('--epoch_steps', type=int, default=500)
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--n_cells', type=int, default=50)
