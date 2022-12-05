@@ -13,16 +13,16 @@ import wandb
 # wandb.login()
 from wandb.keras import WandbCallback
 physical_devices = tf.config.list_physical_devices('GPU')
-# try:
-#     # Disable first GPU
-#     tf.config.set_visible_devices(physical_devices[0:], 'GPU')
-#     logical_devices = tf.config.list_logical_devices('GPU')
-#     print('Number of used GPUs: ', len(logical_devices))
-#     # Logical device was not created for first GPU
-#     assert len(logical_devices) == len(physical_devices) - 1
-# except:
-#     # Invalid device or cannot modify virtual devices once initialized.
-#     pass
+try:
+    # Disable first GPU
+    tf.config.set_visible_devices(physical_devices[0:], 'GPU')
+    logical_devices = tf.config.list_logical_devices('GPU')
+    print('Number of used GPUs: ', len(logical_devices))
+    # Logical device was not created for first GPU
+    assert len(logical_devices) == len(physical_devices) - 1
+except:
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
 # tf.debugging.set_log_device_placement(True)
 sys.path.append('../..')
 
@@ -32,11 +32,9 @@ from lstm.preprocessing.data_processing import (create_df_nd_mtm,
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.utils.config import generate_config
 from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_update_loss_txt
-from lstm.postprocessing import plots_mtm
 from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
 from lstm.lstm_model import build_pi_model
-from lstm.loss import loss_oloop, norm_loss_pi_many
 physical_devices = tf.config.list_physical_devices('GPU')
 
 plt.rcParams["figure.facecolor"] = "w"
@@ -214,8 +212,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=1000)
-    parser.add_argument('--epoch_steps', type=int, default=1)
+    parser.add_argument('--n_epochs', type=int, default=3000)
+    parser.add_argument('--epoch_steps', type=int, default=500)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -287,4 +285,4 @@ def main():
 if __name__ == '__main__':
     main()
     
-# python many_to_many_sweep.py  -cp ../diff_dyn_sys/lorenz96/CSV/D6/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/D6/sweep/
+# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/D6/sweep/
