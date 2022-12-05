@@ -189,7 +189,7 @@ print('Analytical derivative')
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_160_dx60_rk4_99000_stand_3.52_deltat_0.25_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/L60/KS_160_dx60_rk4_99000_stand_3.52_deltat_0.25_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_80_2n_dx60_rk4_99000_stand_3.47_deltat_0.25_trans.csv',
     delimiter=",").astype(
     np.float64)
@@ -220,7 +220,7 @@ start_time = time.time()
 t_lyap = 0.09**(-1)
 norm_time = 1
 N_lyap = int(t_lyap/dt)
-N = 100*N_lyap
+N = 500*N_lyap
 dim = df_train.shape[0]
 print(f'Dimension {dim}')
 Ntransient = max(int(N/100), window_size+2)

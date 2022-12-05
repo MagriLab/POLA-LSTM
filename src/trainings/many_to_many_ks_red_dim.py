@@ -38,12 +38,11 @@ tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, idx_skip=5, shuffle_window=10):
+def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, n_random_idx=5, shuffle_window=10):
     n = series.shape[1]
     m = series.shape[0]
     random.seed(0)
-    batch_shape=series[:, ::idx_skip].shape
-    idx_lst = random.sample(range(n), batch_shape[1])
+    idx_lst = random.sample(range(n), n_random_idx)
     idx_lst.sort()
     dataset = tf.data.Dataset.from_tensor_slices(series)
     dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
@@ -52,7 +51,7 @@ def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, 
     dataset = dataset.shuffle(shuffle_buffer).map(
         lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
     )
-    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, batch_shape[1]], [None, n]))
+    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n_random_idx], [None, n]))
     return dataset
 
 
@@ -68,13 +67,13 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::2], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::2], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
     ks_dim = df_train.shape[0]
     print(f'Dimension of system {ks_dim}')
     # Windowing
-    train_dataset = create_df_nd_random_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], idx_skip=5)
-    valid_dataset = create_df_nd_random_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, idx_skip=5)
+    train_dataset = create_df_nd_random_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=15)
+    valid_dataset = create_df_nd_random_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=15)
     for batch, label in train_dataset.take(1):
         print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
     model = build_pi_model(args.n_cells, dim=ks_dim)
@@ -172,7 +171,7 @@ parser = argparse.ArgumentParser(description='Open Loop')
 parser.add_argument('--n_epochs', type=int, default=1000)
 parser.add_argument('--epoch_steps', type=int, default=100)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=200)
+parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
@@ -216,4 +215,4 @@ run_lstm(parsed_args)
 # python many_to_many_ks.py -dp ../models/ks/D128-100/40000/20-80/ -cp KS_128_dx100_rk4_50000_stand_3.84_trans.csv
 
 
-# python many_to_many_ks_red_dim.py -dp ../models/KS/D160-5n-random/42500/25-200/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_160_dx60_rk4_99000_stand_3.52_deltat_0.25_trans.csv
+# python many_to_many_ks_red_dim.py -dp ../models/l96/D20/200000/25-100/15_20/ -cp Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv
