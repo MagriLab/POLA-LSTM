@@ -285,4 +285,4 @@ def main():
 if __name__ == '__main__':
     main()
     
-# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/D6/sweep/
+# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/D4-6/sweep/
