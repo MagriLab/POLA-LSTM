@@ -31,7 +31,7 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config['ML_CONSTRAINTS']['LR'] = args.learning_rate
     config['ML_CONSTRAINTS']['L2'] = args.l2_regularisation
     config['ML_CONSTRAINTS']['DROPOUT'] = args.dropout
-    config['ML_CONSTRAINTS']['PHYSICS WEIGHT'] = args.physics_weighing
+    config['ML_CONSTRAINTS']['REG WEIGHT'] = args.reg_weighing
 
     # config:: lorenz_data
     config['DATA'] = {}

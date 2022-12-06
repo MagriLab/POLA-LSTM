@@ -281,6 +281,39 @@ def plot_de(
         print("Closed Loop prediction saved at ", img_filepath)
     return pred_closed_loop
 
+
+
+def plot_pred_save(pred, df_valid, img_filepath=None):
+    dim = df_valid.shape[0]
+    N_plot = min(pred.shape[0], df_valid.shape[1])
+    fig, axs = plt.subplots(dim, 1, sharex=True, facecolor="white")  # , figsize=(15, 14))
+    rel_l2_err = np.linalg.norm(df_valid[:, :N_plot].T -
+                                pred[: N_plot]) / np.linalg.norm(pred[: N_plot])
+    fig.suptitle(f"Relative L2 Error for {rel_l2_err}")
+    fig.subplots_adjust(hspace=.5, wspace=.001)
+
+    axs = axs.ravel()
+
+    for i in range(dim):
+        axs[i].plot(
+            df_valid[i, :N_plot],
+            label="Numerical Solution",
+        )
+        axs[i].plot(
+            pred[:N_plot, i],
+            "--",
+            label="RNN Prediction",
+        )
+        comp = "u_"+str(i+1)
+        axs[i].set_ylabel(r"$"+comp+"$")
+        if i < dim-1:
+            axs[i].set_xticklabels([])
+    
+    if img_filepath != None:
+        plt.savefig(img_filepath, dpi=100, facecolor="w", bbox_inches="tight")
+        print("prediction saved at ", img_filepath)
+    plt.close()
+
 # def plot_prediction(
 #     pred_closed_loop,
 #     n_epochs,
