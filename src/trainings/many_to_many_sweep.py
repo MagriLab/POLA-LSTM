@@ -15,7 +15,7 @@ from wandb.keras import WandbCallback
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[2], 'GPU')
+    tf.config.set_visible_devices(physical_devices[1], 'GPU')
     logical_devices = tf.config.list_logical_devices('GPU')
     print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
@@ -47,6 +47,7 @@ from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
 from lstm.lstm_model import build_pi_model
 from lstm.postprocessing.plots_mtm import plot_pred_save
+from lstm.utils.early_stopping import EarlyStopper
 physical_devices = tf.config.list_physical_devices('GPU')
 
 plt.rcParams["figure.facecolor"] = "w"
@@ -159,6 +160,7 @@ def main():
             loss_reg = tf.nn.l2_loss(val_logit) #mse(tf.math.reduce_sum(x_batch_valid, axis=2), tf.math.reduce_sum(val_logit, axis=2))  
             return loss_dd, loss_reg
 
+        early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-6)
         train_loss_dd_tracker = np.array([])
         train_loss_reg_tracker = np.array([])
         valid_loss_dd_tracker = np.array([])
@@ -201,7 +203,7 @@ def main():
                     'valid_dd_loss': float(valid_loss_dd/val_step),
                     'valid_physics_loss': float(valid_loss_reg/val_step)})
 
-            if epoch % args.epoch_steps == 0:
+            if epoch % args.epoch_steps == 0 or early_stopper.early_stop(valid_loss_dd / val_step):
                 print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
                 model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
                 model.save_weights(model_checkpoint)
@@ -227,11 +229,13 @@ def main():
                             'train_physics_loss': float(train_loss_reg/step),
                             'valid_dd_loss': float(valid_loss_dd/val_step),
                             'valid_physics_loss': float(valid_loss_reg/val_step)})
+                if early_stopper.early_stop(valid_loss_dd / val_step):
+                    break
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
     parser.add_argument('--n_epochs', type=int, default=2000)
-    parser.add_argument('--epoch_steps', type=int, default=100)
+    parser.add_argument('--epoch_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -241,7 +245,7 @@ def main():
     parser.add_argument('--l2_regularisation', type=float, default=0)
     parser.add_argument('--dropout', type=float, default=0.0)
     
-    parser.add_argument('--early_stop_patience', type=int, default=0)
+    parser.add_argument('--early_stop_patience', type=int, default=25)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -305,4 +309,4 @@ def main():
 if __name__ == '__main__':
     main()
     
-# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/D4-6/sweep/
+# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/test/
