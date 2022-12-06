@@ -218,7 +218,7 @@ def main():
                 pred = prediction(model, df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
 
                 img_filepath=filepath / "images" / f"pred_{epoch}.png",
-                plot_pred_save(pred, df_valid, img_filepath)
+                #plot_pred_save(pred, df_valid, img_filepath)
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
                 pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
                 wandb.log({'epochs': epoch,
@@ -230,8 +230,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=10)
-    parser.add_argument('--epoch_steps', type=int, default=1)
+    parser.add_argument('--n_epochs', type=int, default=2000)
+    parser.add_argument('--epoch_steps', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -269,7 +269,7 @@ def main():
 
 
     sweep_config = {
-        'method': 'grid',
+        'method': 'random',
         'metric': {
             'name': 'valid_dd_loss',
             'goal': 'minimize'
@@ -282,13 +282,13 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [50]
+                'values': [10, 20, 50]
             },
             'hidden_units': {
-                'values': [100]
+                'values': [20, 50, 100]
             },
             'reg_weighing': {
-                'values': [0.0, 0.0001, 0.0000001, 0.000000001]
+                'values': [0.0, 0.000000001]
             },
             'upsampling': {
                 'values': [1, 2, 3, 4]
@@ -296,7 +296,7 @@ def main():
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="L96-D46-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=30)
+    wandb.agent(sweep_id, function=run_lstm, count=60)
 
 
     print('Regularisation weight', args.reg_weighing)

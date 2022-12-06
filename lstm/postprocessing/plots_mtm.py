@@ -310,9 +310,9 @@ def plot_pred_save(pred, df_valid, img_filepath=None):
             axs[i].set_xticklabels([])
     
     if img_filepath != None:
-        plt.savefig(img_filepath, dpi=100, facecolor="w", bbox_inches="tight")
+        fig.savefig(img_filepath, dpi=100, facecolor="w", bbox_inches="tight")
         print("prediction saved at ", img_filepath)
-    plt.close()
+    
 
 # def plot_prediction(
 #     pred_closed_loop,
