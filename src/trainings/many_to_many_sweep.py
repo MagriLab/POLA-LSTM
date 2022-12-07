@@ -15,7 +15,7 @@ from wandb.keras import WandbCallback
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[1], 'GPU')
+    tf.config.set_visible_devices(physical_devices[2], 'GPU')
     logical_devices = tf.config.list_logical_devices('GPU')
     print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
@@ -230,6 +230,7 @@ def main():
                             'valid_dd_loss': float(valid_loss_dd/val_step),
                             'valid_physics_loss': float(valid_loss_reg/val_step)})
                 if early_stopper.early_stop(valid_loss_dd / val_step):
+                    print('EARLY STOPPING')
                     break
 
     parser = argparse.ArgumentParser(description='Open Loop')
@@ -245,7 +246,7 @@ def main():
     parser.add_argument('--l2_regularisation', type=float, default=0)
     parser.add_argument('--dropout', type=float, default=0.0)
     
-    parser.add_argument('--early_stop_patience', type=int, default=25)
+    parser.add_argument('--early_stop_patience', type=int, default=200)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -288,19 +289,19 @@ def main():
             'window_size': {
                 'values': [10, 20, 50]
             },
-            'hidden_units': {
-                'values': [20, 50, 100]
+            'n_cells': {
+                'values': [ 50, 100]
             },
             'reg_weighing': {
                 'values': [0.0, 0.000000001]
             },
             'upsampling': {
-                'values': [1, 2, 3, 4]
+                'values': [2, 3, 4]
             }
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="L96-D46-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=60)
+    wandb.agent(sweep_id, function=run_lstm, count=36)
 
 
     print('Regularisation weight', args.reg_weighing)
