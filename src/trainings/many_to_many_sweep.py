@@ -67,7 +67,7 @@ def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, 
     dataset = dataset.shuffle(m*shuffle_window)
     dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
     dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
+            lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n_random_idx], [None, n]))
     return dataset
@@ -279,21 +279,21 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [10, 20, 50]
+                'values': [50]
             },
             'n_cells': {
-                'values': [ 50, 100]
+                'values': [ 100]
             },
             'reg_weighing': {
-                'values': [0.0, 0.000000001]
+                'values': [0.0, 1e-9, 1e-6]
             },
             'upsampling': {
-                'values': [2, 3, 4]
+                'values': [5, 6, 10]
             }
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="L96-D46-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=36)
+    wandb.agent(sweep_id, function=run_lstm, count=10)
 
 
     print('Regularisation weight', args.reg_weighing)
