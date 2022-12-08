@@ -8,7 +8,7 @@ import scipy
 import tensorflow as tf
 sys.path.append('../../../')
 from lstm.utils.config import load_config_to_dict
-from lstm.utils.create_paths import make_img_filepath
+from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.utils.qr_decomp import qr_factorization
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
@@ -165,7 +165,7 @@ epochs = model_dict['ML_CONSTRAINTS']['N_EPOCHS']
 dt = model_dict['LORENZ_DATA']['DELTA T']  # time step
 
 
-make_img_filepath(model_path)
+img_filepath = make_folder_filepath(model_path, 'images')
 model = load_model(model_path, epochs, model_dict, dim=dim)
 print('--- model successfully loaded---')
 # Compare this prediction with the LE prediction

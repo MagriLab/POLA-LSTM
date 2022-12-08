@@ -10,17 +10,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-sys.path.append('../..')
 
+sys.path.append('../..')
+from lstm.closed_loop_tools_mtm import prediction
+from lstm.postprocessing.nrmse import vpt
 from lstm.preprocessing.data_processing import (create_df_nd_mtm,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.utils.config import generate_config
 from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_update_loss_txt
-from lstm.postprocessing import plots_mtm
 from lstm.lstm_model import build_pi_model
-from lstm.loss import loss_oloop, norm_loss_pi_many
+from lstm.utils.create_paths import make_folder_filepath
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
     # Disable first GPU
@@ -58,23 +59,25 @@ def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, 
 def run_lstm(args: argparse.Namespace):
 
     reset_random_seeds()
-    image_filepath = args.data_path / "images"
-    image_filepath.mkdir(parents=True, exist_ok=True)
-    logs_checkpoint = args.data_path / "logs"
-    logs_checkpoint.mkdir(parents=True, exist_ok=True)
+    image_filepath = make_folder_filepath(args.data_path, "images") 
+    logs_checkpoint = make_folder_filepath(args.data_path, "logs") 
 
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
     df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
     time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
-    ks_dim = df_train.shape[0]
-    print(f'Dimension of system {ks_dim}')
+    sys_dim = df_train.shape[0]
+    print(f'Dimension of system {sys_dim}')
+
+    t_lyap = 0.93**(-1)
+    norm_time = 1
+    N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
     # Windowing
-    train_dataset = create_df_nd_random_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=3)
-    valid_dataset = create_df_nd_random_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=3)
+    train_dataset = create_df_nd_random_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=4)
+    valid_dataset = create_df_nd_random_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=4)
     for batch, label in train_dataset.take(1):
         print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
-    model = build_pi_model(args.n_cells, dim=ks_dim)
+    model = build_pi_model(args.n_cells, dim=sys_dim)
     # model.load_weights(args.input_data_path)
 
     def decayed_learning_rate(step):
@@ -116,7 +119,7 @@ def run_lstm(args: argparse.Namespace):
         train_loss_pi = 0
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
             loss_dd, loss_pi = train_step_pi(x_batch_train, y_batch_train,
-                                            weight=args.physics_weighing, normalised=args.normalised)
+                                            weight=args.reg_weighing, normalised=args.normalised)
             train_loss_dd += loss_dd
             train_loss_pi += loss_pi
         train_loss_dd_tracker = np.append(train_loss_dd_tracker, train_loss_dd/step)
@@ -149,13 +152,18 @@ def run_lstm(args: argparse.Namespace):
                 train_loss_pi_tracker[-args.epoch_steps:],
                 valid_loss_dd_tracker[-args.epoch_steps:],
                 valid_loss_pi_tracker[-args.epoch_steps:])
+            N=10*N_lyap
+            pred = prediction(model, df_valid, args.window_size, sys_dim, 4, N=N)
+            lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
+            pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
+            print(f"Prediction horizon {pred_horizon}")
 
 parser = argparse.ArgumentParser(description='Open Loop')
 
-parser.add_argument('--n_epochs', type=int, default=1000)
-parser.add_argument('--epoch_steps', type=int, default=50)
-parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=50)
+parser.add_argument('--n_epochs', type=int, default=2000)
+parser.add_argument('--epoch_steps', type=int, default=250)
+parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
@@ -164,18 +172,18 @@ parser.add_argument('--l2_regularisation', type=float, default=0)
 parser.add_argument('--dropout', type=float, default=0.0)
  
 parser.add_argument('--early_stop_patience', type=int, default=0)
-parser.add_argument('--physics_weighing', type=float, default=0.0)
+parser.add_argument('--reg_weighing', type=float, default=0.0)
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=100)
 parser.add_argument('--t_end', type=int, default=425)
-parser.add_argument('--upsampling', type=int, default=1)
+parser.add_argument('--upsampling', type=int, default=2)
 parser.add_argument('--delta_t', type=float, default=0.01)
 parser.add_argument('--total_n', type=float, default=42500)
 parser.add_argument('--window_size', type=int, default=25)
 parser.add_argument('--signal_noise_ratio', type=int, default=0)
-parser.add_argument('--train_ratio', type=float, default=0.25)
-parser.add_argument('--valid_ratio', type=float, default=0.05)
+parser.add_argument('--train_ratio', type=float, default=0.45)
+parser.add_argument('--valid_ratio', type=float, default=0.1)
 
 # arguments to define paths
 # parser.add_argument( '--experiment_path', type=Path, required=True)
@@ -191,8 +199,8 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 
 
 generate_config(yaml_config_path, parsed_args)
-print(f'Physics weight {parsed_args.physics_weighing}')
+print(f'Physics weight {parsed_args.reg_weighing}')
 run_lstm(parsed_args)
 
 
-# python many_to_many_l96_red_dim.py -dp ../models/l96/D6/200000/25-50/3-6/ -cp ../diff_dyn_sys/lorenz96/CSV/D6/dim_6_rk4_200000_0.01_stand13.33_trans.csv
+# python many_to_many_l96_red_dim.py -dp ../models/l96/D4-6/42500/25-100/ -cp ../diff_dyn_sys/lorenz96/CSV/D6/dim_6_rk4_42500_0.01_stand13.33_trans.csv

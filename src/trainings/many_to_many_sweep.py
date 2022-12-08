@@ -72,14 +72,6 @@ def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, 
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n_random_idx], [None, n]))
     return dataset
 
-# def plot_pred_save(pred, df_valid, filepath, epoch):
-#     fig, ax = plt.subplots()
-#     N_plot = min(pred.shape[0], df_valid.shape[1])
-#     ax.plot(pred[:N_plot, :])
-#     ax.plot(df_valid[:, :N_plot].T, 'k')
-#     img_filepath=filepath / "images" / f"pred_{epoch}.png",
-#     fig.savefig(img_filepath, dpi=100, facecolor="w", bbox_inches="tight")
-#     # plt.close()
 
 def main():
     def run_lstm():

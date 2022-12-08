@@ -52,8 +52,8 @@ def run_lstm(args: argparse.Namespace):
         os.makedirs(logs_checkpoint)
     mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
     # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
-    time_train, time_valid, time_test = train_valid_test_split(mydf[0, :], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+    df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+    time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
     ks_dim = df_train.shape[0]
     # Windowing
     train_dataset = create_df_nd_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0])
@@ -70,57 +70,57 @@ def run_lstm(args: argparse.Namespace):
         return initial_learning_rate * decay_rate ** (step / decay_steps)
 
     @tf.function
-    def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
+    def train_step_reg(x_batch_train, y_batch_train, weight=1, normalised=True):
         with tf.GradientTape() as tape:
             one_step_pred = model(x_batch_train, training=True)
             mse = tf.keras.losses.MeanSquaredError()
             loss_dd = mse(y_batch_train, one_step_pred) 
-            loss_pi = 0 #mse(tf.math.reduce_sum(y_batch_train, axis=2), tf.math.reduce_sum(one_step_pred, axis=2))  
-            loss_value = loss_dd + weight*loss_pi
+            loss_reg = 0 #mse(tf.math.reduce_sum(y_batch_train, axis=2), tf.math.reduce_sum(one_step_pred, axis=2))  
+            loss_value = loss_dd + weight*loss_reg
         grads = tape.gradient(loss_value, model.trainable_weights)
         model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
-        return loss_dd, loss_pi
+        return loss_dd, loss_reg
 
     @tf.function
-    def valid_step_pi(x_batch_valid, y_batch_valid, normalised=True):
+    def valid_step_reg(x_batch_valid, y_batch_valid, normalised=True):
         val_logit = model(x_batch_valid, training=False)
         mse = tf.keras.losses.MeanSquaredError()
         loss_dd = mse(y_batch_valid, val_logit) 
-        loss_pi = 0 #mse(tf.math.reduce_sum(x_batch_valid, axis=2), tf.math.reduce_sum(val_logit, axis=2))  
-        return loss_dd, loss_pi
+        loss_reg = 0 #mse(tf.math.reduce_sum(x_batch_valid, axis=2), tf.math.reduce_sum(val_logit, axis=2))  
+        return loss_dd, loss_reg
 
     train_loss_dd_tracker = np.array([])
-    train_loss_pi_tracker = np.array([])
+    train_loss_reg_tracker = np.array([])
     valid_loss_dd_tracker = np.array([])
-    valid_loss_pi_tracker = np.array([])
+    valid_loss_reg_tracker = np.array([])
 
     for epoch in range(1, args.n_epochs+1):
         model.optimizer.learning_rate = decayed_learning_rate(epoch)
         start_time = time.time()
         train_loss_dd = 0
-        train_loss_pi = 0
+        train_loss_reg = 0
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-            loss_dd, loss_pi = train_step_pi(x_batch_train, y_batch_train,
-                                            weight=args.physics_weighing, normalised=args.normalised)
+            loss_dd, loss_reg = train_step_reg(x_batch_train, y_batch_train,
+                                            weight=args.reg_weighing, normalised=args.normalised)
             train_loss_dd += loss_dd
-            train_loss_pi += loss_pi
+            train_loss_reg += loss_reg
         train_loss_dd_tracker = np.append(train_loss_dd_tracker, train_loss_dd/step)
-        train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
+        train_loss_reg_tracker = np.append(train_loss_reg_tracker, train_loss_reg/step)
 
 
         print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-        print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd, loss_pi))
+        print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd, loss_reg))
 
         valid_loss_dd = 0
-        valid_loss_pi = 0
+        valid_loss_reg = 0
         for val_step, (x_batch_valid, y_batch_valid) in enumerate(valid_dataset):
-            val_loss_dd, val_loss_pi = valid_step_pi(x_batch_valid, y_batch_valid)
+            val_loss_dd, val_loss_reg = valid_step_reg(x_batch_valid, y_batch_valid)
             valid_loss_dd += val_loss_dd
-            valid_loss_pi += val_loss_pi
+            valid_loss_reg += val_loss_reg
         valid_loss_dd_tracker = np.append(valid_loss_dd_tracker, valid_loss_dd/val_step)
-        valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, valid_loss_pi/val_step)
+        valid_loss_reg_tracker = np.append(valid_loss_reg_tracker, valid_loss_reg/val_step)
         print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" %
-              (valid_loss_dd / val_step, valid_loss_pi / val_step))
+              (valid_loss_dd / val_step, valid_loss_reg / val_step))
 
         if epoch % args.epoch_steps == 0:
             print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
@@ -131,39 +131,41 @@ def run_lstm(args: argparse.Namespace):
             model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
 
             np.savetxt(logs_checkpoint/f"training_loss_dd_{epoch}.txt", train_loss_dd_tracker)
-            np.savetxt(logs_checkpoint/f"training_loss_pi_{epoch}.txt", train_loss_pi_tracker)
+            np.savetxt(logs_checkpoint/f"training_loss_reg_{epoch}.txt", train_loss_reg_tracker)
             np.savetxt(logs_checkpoint/f"valid_loss_dd_{epoch}.txt", valid_loss_dd_tracker)
-            np.savetxt(logs_checkpoint/f"valid_loss_pi_{epoch}.txt", valid_loss_pi_tracker)
+            np.savetxt(logs_checkpoint/f"valid_loss_reg_{epoch}.txt", valid_loss_reg_tracker)
             logs_epoch_checkpoint = filepath / "logs"/ f"{epoch}"
-            loss_arr_to_tensorboard(logs_epoch_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
-                                    valid_loss_dd_tracker, valid_loss_pi_tracker)
+            loss_arr_to_tensorboard(logs_epoch_checkpoint, train_loss_dd_tracker, train_loss_reg_tracker,
+                                    valid_loss_dd_tracker, valid_loss_reg_tracker)
+
 
 
     if not os.path.exists(logs_checkpoint):
         os.makedirs(logs_checkpoint)
     np.savetxt(logs_checkpoint/f"training_loss_dd.txt", train_loss_dd_tracker)
-    np.savetxt(logs_checkpoint/f"training_loss_pi.txt", train_loss_pi_tracker)
+    np.savetxt(logs_checkpoint/f"training_loss_reg.txt", train_loss_reg_tracker)
     np.savetxt(logs_checkpoint/f"valid_loss_dd.txt", valid_loss_dd_tracker)
-    np.savetxt(logs_checkpoint/f"valid_loss_pi.txt", valid_loss_pi_tracker)
-    loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
-                            valid_loss_dd_tracker, valid_loss_pi_tracker)
+    np.savetxt(logs_checkpoint/f"valid_loss_reg.txt", valid_loss_reg_tracker)
+    loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_reg_tracker,
+                            valid_loss_dd_tracker, valid_loss_reg_tracker)
 
 
 parser = argparse.ArgumentParser(description='Open Loop')
 
-parser.add_argument('--n_epochs', type=int, default=5000)
-parser.add_argument('--epoch_steps', type=int, default=500)
-parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--n_cells', type=int, default=50)
+parser.add_argument('--n_epochs', type=int, default=2000)
+parser.add_argument('--epoch_steps', type=int, default=250)
+parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--n_cells', type=int, default=100)
 parser.add_argument('--oloop_train', default=True, action='store_true')
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--activation', type=str, default='Tanh')
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--l2_regularisation', type=float, default=0)
 parser.add_argument('--dropout', type=float, default=0.0)
+parser.add_argument('--upsampling', type=int, default=2)
  
 parser.add_argument('--early_stop_patience', type=int, default=0)
-parser.add_argument('--physics_weighing', type=float, default=0.0)
+parser.add_argument('--reg_weighing', type=float, default=0.0)
 parser.add_argument('--normalised', default=False, action='store_true')
 parser.add_argument('--t_0', type=int, default=0)
 parser.add_argument('--t_trans', type=int, default=100)
@@ -187,7 +189,7 @@ yaml_config_path = parsed_args.data_path / f'config.yml'
 
 
 generate_config(yaml_config_path, parsed_args)
-print(f'Physics weight {parsed_args.physics_weighing}')
+print(f'REG weight {parsed_args.reg_weighing}')
 run_lstm(parsed_args)
 
-# python many_to_many_ks.py -dp ../models/ks/D3-40_34/60000/50-25/ -cp ../diff_dyn_sys/KS_flow/CSV/KS_40_to_50_dx200_rk4_240000_stand_3.76_trans.csv
+# python many_to_many_ks.py -cp Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -cp ../diff_dyn_sys/KS_flow/CSV/KS_40_to_50_dx200_rk4_240000_stand_3.76_trans.csv
