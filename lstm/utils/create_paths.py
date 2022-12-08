@@ -1,8 +1,14 @@
-import os 
+from argparse import Path
 
+def make_folder_filepath(model_path:Path, foldername:str) -> Path:
+    """makes a folder in the model filepath
 
-def make_img_filepath(model_path):
-    img_filepath = model_path + "images/"
-    if not os.path.exists(img_filepath):
-        os.makedirs(img_filepath)
-    return img_filepath
+    Args:
+        model_path (Path): folder of model
+
+    Returns:
+        Path: image filepath
+    """
+    folder_filepath = model_path / foldername
+    folder_filepath.mkdir(parents=True, exist_ok=True)
+    return folder_filepath

@@ -9,9 +9,9 @@ def nrmse(pred: np.ndarray, df_test: np.ndarray, n_length: Optional[int] = None)
     Compute the normalized root mean square error (NRMSE) between the network prediction and the ground truth.
 
     Arguments:
-        pred (np.ndarray) : A numpy array containing the network prediction.
-        df_test (np.ndarray): A numpy array containing the ground truth values, e.g. from training data.
-        n_length (int, optional): The length of the input sequence. If not specified, the length of the shorter input will be used.
+        pred (np.ndarray) : network prediction
+        df_test (np.ndarray): ground truth values, e.g. from training data
+        n_length (int, optional): length of the input sequence. If not specified, the length of the shorter input will be used
 
     Returns:
         The NRMSE value as a float.
@@ -29,7 +29,7 @@ def vpt(pred: np.ndarray, df_test: np.ndarray, threshold: float) -> int:
     Args:
         pred (np.ndarray): network prediction
         df_test (np.ndarray): reference data 
-        threshold (float): The NRMSE threshold.
+        threshold (float):  NRMSE threshold
 
     Returns:
         int: NRMSE index

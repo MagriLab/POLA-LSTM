@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-def lstm_step_comb(u_t, h, c, model, idx, dim=3):
+def lstm_step_comb(u_t, h, c, model, idx, window_size, dim=3):
     """Executes one LSTM step for the Lyapunov exponent computation
 
     Args:

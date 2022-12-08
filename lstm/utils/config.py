@@ -1,3 +1,4 @@
+from typing import Dict
 import argparse
 from pathlib import Path
 from typing import Any, Dict
@@ -49,7 +50,17 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     with open(config_path, 'w+') as f:
         yaml.dump(config, f)
 
-def load_config_to_dict(model_path):
-    with open(model_path+"config.yml", 'r') as stream:
+
+def load_config_to_dict(model_path: Path) -> Dict:
+    """Loads a config file from a given directory and returns it as a dictionary.
+
+    Args:
+        model_path (Path): The directory where the configuration file is located.
+
+    Returns:
+        A dictionary containing the configuration data.
+    """
+    config_path = model_path / "config.yml"
+    with open(config_path, 'r') as stream:
         dict_loaded = yaml.safe_load(stream)
     return dict_loaded

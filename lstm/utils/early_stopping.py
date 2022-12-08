@@ -2,27 +2,29 @@ import numpy as np
 
 
 class EarlyStopper:
-    def __init__(self, patience: int, min_delta: float)->None:
-        # """Early stopping mechanism to prevent overfitting.
+    def __init__(self, patience: int, min_delta: float) -> None:
 
-        # Attributes:
-        #     patience (int): Number of epochs to wait before stopping.
-        #     min_delta (float): Minimum change in validation loss to qualify as improvement.
-        #     counter (int): Number of epochs with no improvement.
-        #     min_validation_loss (float): Minimum observed validation loss.
-        # """
+        """Early stopping mechanism to prevent overfitting.
+
+        Attributes:
+            patience (int): Number of epochs to wait before stopping.
+            min_delta (float): Minimum change in validation loss to qualify as improvement.
+            counter (int): Number of epochs with no improvement.
+            min_validation_loss (float): Minimum observed validation loss.
+        """
+        
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = np.inf
 
     def early_stop(self, validation_loss: float) -> bool:
-        # """Check if early stopping is necessary.
-        # Args:
-        #     validation_loss (float): Current validation loss.
-        # Returns:
-        #     bool: True if the model should be stopped, False otherwise.
-        # """
+        """Check if early stopping is necessary.
+        Args:
+            validation_loss (float): Current validation loss.
+        Returns:
+            bool: True if the model should be stopped, False otherwise.
+        """
 
         if validation_loss < self.min_validation_loss:
             self.min_validation_loss = validation_loss
