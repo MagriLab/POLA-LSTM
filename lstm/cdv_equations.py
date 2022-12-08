@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from typing import Union
 
 u_star_1 = 0.95
 u_star_4 = -0.76095
@@ -11,32 +12,32 @@ b = 0.5
 epsilon = 16*np.sqrt(2) / (5*np.pi)
 
 
-def alpha_m(m):
+def alpha_m(m: Union[int, float]) -> float:
     numerator = 8*np.sqrt(2) * m**2 * (b**2 + m**2 - 1)
     denominator = np.pi*(4*m**2 - 1)*(b**2 + m**2)
     return numerator/denominator
 
 
-def beta_m(m):
+def beta_m(m: Union[int, float]) -> float:
     numerator = beta * b**2
     denominator = b**2 + m**2
     return numerator/denominator
 
 
-def delta_m(m):
+def delta_m(m: Union[int, float]) -> float:
     constant = 64*np.sqrt(2) / (15*np.pi)
     numerator = b**2 - m**2 + 1
     denominator = b**2 + m**2
     return constant*numerator/denominator
 
 
-def gamma_star_m(m):
+def gamma_star_m(m: Union[int, float]) -> float:
     numerator = 4*np.sqrt(2)*m*b
     denominator = np.pi*(4*m**2 - 1)
     return gamma * numerator/denominator
 
 
-def gamma_m(m):
+def gamma_m(m: Union[int, float]) -> float:
     numerator = 4*np.sqrt(2)*m**3*b
     denominator = np.pi*(4*m**2 - 1)*(b**2+m**2)
     return gamma * numerator/denominator

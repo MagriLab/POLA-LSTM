@@ -1,4 +1,5 @@
 from typing import Union
+import math
 
 
 def decayed_learning_rate(
@@ -9,12 +10,20 @@ def decayed_learning_rate(
 
     Args:
         step (Union[int, float]): current step
-        learning_rate (Union[int, float]): _description_
-        decay_steps (int, optional): _description_. Defaults to 1000.
-        decay_rate (Union[int, float], optional): _description_. Defaults to 0.75.
+        learning_rate (Union[int, float]): original learning rate
+        decay_steps (int, optional): the number of steps to take before applying decay. Defaults to 1000.
+        decay_rate (Union[int, float], optional): the number of steps to take before applying decay. Defaults to 0.75.
 
     Returns:
         float: current learning rate 
     """
-    # careful here! step includes batch steps in the tf framework
-    return learning_rate * decay_rate ** (step / decay_steps)
+    if step <= 0:
+            raise ValueError("'step' must be a positive integer")
+    if learning_rate <= 0:
+        raise ValueError("'learning_rate' must be a positive float")
+    if decay_steps <= 0:
+        raise ValueError("'decay_steps' must be a positive integer")
+    if decay_rate <= 0 or decay_rate > 1:
+        raise ValueError("'decay_rate' must be a float between 0 and 1")
+
+    return learning_rate * math.pow(decay_rate, step / decay_steps)

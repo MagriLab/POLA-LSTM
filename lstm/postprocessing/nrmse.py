@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Optional
-# implementation based on Backpropagation algorithms and RC in RNNs for 
+# implementation based on Backpropagation algorithms and RC in RNNs for
 # the forecasting of complex spatiotemporal dynamics by Vlachas (2020)
 
 
@@ -21,6 +21,7 @@ def nrmse(pred: np.ndarray, df_test: np.ndarray, n_length: Optional[int] = None)
     std = np.std(df_test[:, :n_length])
     diff = pred[:n_length, :] - df_test[:, :+n_length].T
     return np.sqrt(np.mean(diff**2/std))
+
 
 def vpt(pred: np.ndarray, df_test: np.ndarray, threshold: float) -> int:
     """Calculate the "valid prediction time" (VPT) of a given prediction.

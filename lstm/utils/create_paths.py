@@ -1,6 +1,7 @@
 from argparse import Path
 
-def make_folder_filepath(model_path:Path, foldername:str) -> Path:
+
+def make_folder_filepath(model_path: Path, foldername: str) -> Path:
     """makes a folder in the model filepath
 
     Args:

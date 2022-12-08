@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Tuple
 
+
 def qr_factorization(A: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """ Decompose matrix A into orthogonal matrix Q and an upper triangular matrix R.
 

@@ -57,52 +57,5 @@ def valid_step_dd(model, x_batch_valid, y_batch_valid):
     val_logit = model(x_batch_valid, training=False)
     mse = tf.keras.losses.MeanSquaredError()
     loss_dd = mse(y_batch_valid, val_logit)
-    loss_pi = 0  # mse(tf.math.reduce_sum(x_batch_valid, axis=2), tf.math.reduce_sum(val_logit, axis=2))
+    loss_pi = 0   
     return loss_dd, loss_pi
-
-
-class LorenzLSTM(tf.keras.Model):
-    def __init__(self, args: argparse.Namespace, log_board_path: Path):
-        super().__init__()
-        self.n_cells = args.n_cells
-        self.loss = loss_oloop
-        self.lstm_cell = tf.keras.layers.LSTMCell(args.n_cells)
-        self.lstm_rnn = tf.keras.layers.RNN(
-            self.lstm_cell, return_state=True, stateful=False, name="LSTM1"
-        )
-        self.dense = tf.keras.layers.Dense(3)
-        self.optimizer = tf.keras.optimizers.Adam()
-        self.compile(loss=self.loss, optimizer=self.optimizer, metrics=["mse"])
-        self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_board_path, histogram_freq=1)
-        if args.early_stop == True:
-            self.early_stop_callback = tf.keras.callbacks.EarlyStopping(
-                monitor="loss", patience=args.early_stop_patience, restore_best_weights=True)
-
-    def save_model(self, model_path: Path):
-        model_checkpoint = model_path / str(self.current_epoch)
-        # Save the weights
-        self.save_weights(model_checkpoint)
-
-    def train_oloop(self, args: argparse.Namespace, train_dataset, valid_dataset):
-        for iteration in range(args.epoch_iter):
-            if args.early_stop == False:
-                self.history = self.fit(
-                    train_dataset,
-                    epochs=args.epochs_steps,
-                    inital_epoch=iteration*args.epochs_steps,
-                    batch_size=args.batch_size,
-                    validation_data=valid_dataset,
-                    verbose=1,
-                    callbacks=[self.tensorboard_callback],  # , early_stop_callback],
-                )
-            else:
-                self.history = self.fit(
-                    train_dataset,
-                    epochs=args.epochs_steps,
-                    inital_epoch=iteration*args.epochs_steps,
-                    batch_size=args.batch_size,
-                    validation_data=valid_dataset,
-                    verbose=1,
-                    callbacks=[self.tensorboard_callback, self.early_stop_callback],
-                )
-            self.current_epoch = (iteration+1)*args.epochs_steps
