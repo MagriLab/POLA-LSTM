@@ -1,4 +1,4 @@
-from argparse import Path
+from pathlib import Path
 
 
 def make_folder_filepath(model_path: Path, foldername: str) -> Path:

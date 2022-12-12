@@ -87,3 +87,20 @@ def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, 
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, batch_shape[1]], [None, n]))
     return dataset
+
+def create_df_nd_random_md_mtm_idx(series, window_size, batch_size, shuffle_buffer, n_random_idx=15, shuffle_window=10):
+    n = series.shape[1]
+    m = series.shape[0]
+    random.seed(0)
+    idx_lst = random.sample(range(n), n_random_idx)
+    idx_lst.sort()
+    print(idx_lst)
+    dataset = tf.data.Dataset.from_tensor_slices(series)
+    dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
+    dataset = dataset.shuffle(m*shuffle_window)
+    dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
+    dataset = dataset.shuffle(shuffle_buffer).map(
+        lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
+    )
+    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n_random_idx], [None, n]))
+    return dataset

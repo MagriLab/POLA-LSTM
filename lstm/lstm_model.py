@@ -35,7 +35,7 @@ def build_pi_model(cells=100, dim=3):
 
 def load_model(model_path, epochs, model_dict, dim=3):
     model = build_pi_model(model_dict['ML_CONSTRAINTS']['N_CELLS'], dim=dim)
-    model.load_weights(model_path + "model/" + str(epochs) + "/weights").expect_partial()
+    model.load_weights(model_path /"model" / str(epochs) / "weights").expect_partial()
     return model
 
 
