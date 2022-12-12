@@ -111,7 +111,10 @@ def main():
 
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
         # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-        df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+        random.seed(0)
+        idx_lst = random.sample(range(1, 7), 4)
+        idx_lst.sort()
+        df_train, df_valid, df_test = df_train_valid_test_split(mydf[idx_lst, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
         sys_dim = df_train.shape[0]
         print(f'Dimension of system {sys_dim}')
@@ -266,7 +269,7 @@ def main():
 
 
     sweep_config = {
-        'method': 'random',
+        'method': 'grid',
         'metric': {
             'name': 'valid_dd_loss',
             'goal': 'minimize'
@@ -279,21 +282,21 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [50]
+                'values': [20, 50]
             },
             'n_cells': {
-                'values': [ 100]
+                'values': [100, 200]
             },
             'reg_weighing': {
                 'values': [0.0, 1e-9, 1e-6]
             },
             'upsampling': {
-                'values': [5, 6, 10]
+                'values': [4, 5, 6, 10]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-D46-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=10)
+    sweep_id = wandb.sweep(sweep_config, project="L96-D44-6-Sweep")
+    wandb.agent(sweep_id, function=run_lstm, count=48)
 
 
     print('Regularisation weight', args.reg_weighing)
