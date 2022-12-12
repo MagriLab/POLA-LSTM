@@ -23,38 +23,14 @@ if gpus:
     except RuntimeError as e:
      # Virtual devices must be set before GPUs have been initialize
         print(e)
-
-#try:
-    # Disable first GPU
-    #tf.config.set_visible_devices(gpus[1], 'GPU')
-    #logical_devices = tf.config.list_logical_devices('GPU')
-    #tf.config.experimental.set_virtual_device_configuration(physical_devices[1], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=3072)])
-    #tf.config.set_logical_device_configuration(physical_devices[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)]) 
-    #print('Number of used GPUs: ', len(logical_devices))
-    # Logical device was not created for first GPU
-    #assert len(logical_devices) == len(gpus) - 1
-#except:
-    # Invalid device or cannot modify virtual devices once initialized.
-    #pass
-# tf.debugging.set_log_device_placement(True)
 sys.path.append('../..')
-#  if gpus:
-#             try:
-#                 tf.config.set_visible_devices(gpus[gpu_id], 'GPU')# use [] for cpu only, gpus[i] for the ith gpu
-#                 if MEMORY_GROWTH:
-#                     tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
-#                 elif isinstance(memory_limit,int):
-#                     tf.config.set_logical_device_configuration(gpus[gpu_id], [tf.config.LogicalDeviceConfiguration(memory_limit=memory_limit)]) 
-#                 # set hard memory limit
-#                 print('this process will run on gpu %i'%gpu_id)
-#             except RuntimeError as e:
-#                 # Visible devices must be set before GPUs have been initialized
-#                 print(e)
-from lstm.preprocessing.data_processing import (create_df_nd_mtm,
+
+from lstm.preprocessing.data_processing import (create_df_nd_random_md_mtm_idx,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.utils.config import generate_config
+from lstm.utils.learning_rates import decayed_learning_rate
 from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_update_loss_txt
 from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
@@ -69,21 +45,6 @@ tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-def create_df_nd_random_md_mtm(series, window_size, batch_size, shuffle_buffer, n_random_idx=5, shuffle_window=10):
-    n = series.shape[1]
-    m = series.shape[0]
-    random.seed(0)
-    idx_lst = random.sample(range(n), n_random_idx)
-    idx_lst.sort()
-    dataset = tf.data.Dataset.from_tensor_slices(series)
-    dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
-    dataset = dataset.shuffle(m*shuffle_window)
-    dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
-    dataset = dataset.shuffle(shuffle_buffer).map(
-            lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
-    )
-    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n_random_idx], [None, n]))
-    return dataset
 
 
 def main():
@@ -135,18 +96,11 @@ def main():
         norm_time = 1
         N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
         # Windowing
-        train_dataset = create_df_nd_random_md_mtm(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=args.n_random_idx)
-        valid_dataset = create_df_nd_random_md_mtm(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
+        train_dataset = create_df_nd_random_md_mtm_idx(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=args.n_random_idx)
+        valid_dataset = create_df_nd_random_md_mtm_idx(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
         model = build_pi_model(args.n_cells, dim=sys_dim)
-
-        def decayed_learning_rate(step):
-            decay_steps = 1000
-            decay_rate = 0.75
-            initial_learning_rate = args.learning_rate
-            # careful here! step includes batch steps in the tf framework
-            return initial_learning_rate * decay_rate ** (step / decay_steps)
 
         @tf.function
         def train_step_reg(x_batch_train, y_batch_train, weight=1, normalised=True):
@@ -177,7 +131,7 @@ def main():
         # tf.keras.backend.set_value(model.optimizer.learning_rate, lr_schedule)
 
         for epoch in range(1, args.n_epochs+1):
-            model.optimizer.learning_rate = decayed_learning_rate(epoch)
+            model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
             start_time = time.time()
             train_loss_dd = 0
             train_loss_reg = 0
@@ -262,7 +216,7 @@ def main():
     parser.add_argument('--t_end', type=int, default=425)
     parser.add_argument('--upsampling', type=int, default=1)
     parser.add_argument('--n_random_idx', type=int, default=2)
-    parser.add_argument('--lyap', type=float, default=1.0)
+    parser.add_argument('--lyap', type=float, default=0.93)
     parser.add_argument('--delta_t', type=float, default=0.01)
     parser.add_argument('--total_n', type=float, default=42500)
     parser.add_argument('--window_size', type=int, default=25)

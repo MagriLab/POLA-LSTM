@@ -21,6 +21,7 @@ from lstm.preprocessing.data_processing import (create_df_nd_mtm,
                                                 train_valid_test_split)
 from lstm.utils.config import generate_config
 from lstm.utils.random_seed import reset_random_seeds
+from lstm.utils.learning_rates import decayed_learning_rate
 
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
@@ -63,14 +64,6 @@ def run_lstm(args: argparse.Namespace):
 
     model = build_pi_model(args.n_cells, dim=df_train.shape[0])
     # model.load_weights(args.input_data_path)
-
-    def decayed_learning_rate(step):
-        decay_steps = 1000
-        decay_rate = 0.75
-        initial_learning_rate = args.learning_rate
-        # careful here! step includes batch steps in the tf framework
-        return initial_learning_rate * decay_rate ** (step / decay_steps)
-
     @tf.function
     def train_step_pi(x_batch_train, y_batch_train, weight=1, normalised=True):
         with tf.GradientTape() as tape:
@@ -97,7 +90,7 @@ def run_lstm(args: argparse.Namespace):
     valid_loss_pi_tracker = np.array([])
 
     for epoch in range(args.n_epochs+1):
-        model.optimizer.learning_rate = decayed_learning_rate(epoch)
+        model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
         start_time = time.time()
         train_loss_dd = 0
         train_loss_pi = 0

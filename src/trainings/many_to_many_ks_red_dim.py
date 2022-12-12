@@ -112,7 +112,7 @@ def run_lstm(args: argparse.Namespace):
     valid_loss_pi_tracker = np.array([])
 
     for epoch in range(1, args.n_epochs+1):
-        model.optimizer.learning_rate = decayed_learning_rate(epoch)
+        model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
         start_time = time.time()
         train_loss_dd = 0
         train_loss_pi = 0
