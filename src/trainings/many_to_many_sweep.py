@@ -12,17 +12,30 @@ import tensorflow as tf
 import wandb
 # wandb.login()
 from wandb.keras import WandbCallback
-physical_devices = tf.config.list_physical_devices('GPU')
-try:
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+      # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
+    try:
+        tf.config.set_visible_devices(gpus[1], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[1],[tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+     # Virtual devices must be set before GPUs have been initialize
+        print(e)
+
+#try:
     # Disable first GPU
-    tf.config.set_visible_devices(physical_devices[2], 'GPU')
-    logical_devices = tf.config.list_logical_devices('GPU')
-    print('Number of used GPUs: ', len(logical_devices))
+    #tf.config.set_visible_devices(gpus[1], 'GPU')
+    #logical_devices = tf.config.list_logical_devices('GPU')
+    #tf.config.experimental.set_virtual_device_configuration(physical_devices[1], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=3072)])
+    #tf.config.set_logical_device_configuration(physical_devices[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)]) 
+    #print('Number of used GPUs: ', len(logical_devices))
     # Logical device was not created for first GPU
-    assert len(logical_devices) == len(physical_devices) - 1
-except:
+    #assert len(logical_devices) == len(gpus) - 1
+#except:
     # Invalid device or cannot modify virtual devices once initialized.
-    pass
+    #pass
 # tf.debugging.set_log_device_placement(True)
 sys.path.append('../..')
 #  if gpus:
@@ -112,7 +125,7 @@ def main():
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
         # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
         random.seed(0)
-        idx_lst = random.sample(range(1, 7), 4)
+        idx_lst = random.sample(range(1, 7), 2)
         idx_lst.sort()
         df_train, df_valid, df_test = df_train_valid_test_split(mydf[idx_lst, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
@@ -248,7 +261,7 @@ def main():
     parser.add_argument('--t_trans', type=int, default=100)
     parser.add_argument('--t_end', type=int, default=425)
     parser.add_argument('--upsampling', type=int, default=1)
-    parser.add_argument('--n_random_idx', type=int, default=4)
+    parser.add_argument('--n_random_idx', type=int, default=2)
     parser.add_argument('--lyap', type=float, default=1.0)
     parser.add_argument('--delta_t', type=float, default=0.01)
     parser.add_argument('--total_n', type=float, default=42500)
@@ -288,15 +301,15 @@ def main():
                 'values': [100, 200]
             },
             'reg_weighing': {
-                'values': [0.0, 1e-9, 1e-6]
+                'values': [0.0, 1e-6]
             },
             'upsampling': {
-                'values': [4, 5, 6, 10]
+                'values': [5, 7, 10]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-D44-6-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=48)
+    sweep_id = wandb.sweep(sweep_config, project="L96-D22-6-Sweep")
+    wandb.agent(sweep_id, function=run_lstm, count=24)
 
 
     print('Regularisation weight', args.reg_weighing)
