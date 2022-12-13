@@ -169,64 +169,42 @@ mydf = np.genfromtxt(
 
 
 
-for name in ['fanciful-sweep-3',
- 'easy-sweep-31',
- 'distinctive-sweep-4',
- 'brisk-sweep-6',
- 'denim-sweep-36',
- 'pleasant-sweep-23',
- 'kind-sweep-2',
- 'classic-sweep-29',
- 'firm-sweep-8',
- 'snowy-sweep-10',
- 'driven-sweep-2',
- 'ethereal-sweep-3',
- 'leafy-sweep-12',
- 'colorful-sweep-11',
- 'stilted-sweep-6',
- 'trim-sweep-34',
- 'blooming-sweep-14',
- 'expert-sweep-3',
- 'serene-sweep-28',
- 'feasible-sweep-1',
- 'fearless-sweep-5',
- 'giddy-sweep-26',
- 'visionary-sweep-5',
- 'classic-sweep-7',
- 'splendid-sweep-9',
- 'decent-sweep-5',
- 'crimson-sweep-1',
- 'drawn-sweep-1',
- 'sunny-sweep-10',
- 'icy-sweep-32',
- 'earnest-sweep-9',
- 'faithful-sweep-7']:
-    model_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D4-6/sweep') / name 
+for name in [
+ 'prime-sweep-12',
+ 'glad-sweep-9',
+ 'tough-sweep-21',
+ 'different-sweep-4',
+ 'serene-sweep-17',
+ 'fresh-sweep-10',
+ 'fearless-sweep-2',
+ 'golden-sweep-3',
+ 'laced-sweep-6']:
+    model_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D22-6/sweep') / name 
     model_dict = load_config_to_dict(model_path)
 
-    dim = 6  # df_train.shape[0]
+    dim = 2  # df_train.shape[0]
     window_size = model_dict['DATA']['WINDOW_SIZE']
     n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
     epochs = max([int(i) for i in next(os.walk(model_path/'model'))[1]])
     dt = model_dict['DATA']['DELTA T']  # time step
     batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
     img_filepath = make_folder_filepath(model_path, 'images')
-    img_filapath_folder = make_folder_filepath(Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D4-6/sweep/'), 'images')
+    img_filapath_folder = make_folder_filepath(Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D22-6/sweep/'), 'images')
     model = load_model(model_path, epochs, model_dict, dim=dim)
     upsampling = model_dict['DATA']['UPSAMPLING']
     train_ratio = model_dict['DATA']['TRAINING RATIO']
     valid_ratio = model_dict['DATA']['VALID RATIO']
-    # random.seed(0)
-    # idx_lst = random.sample(range(1, 7), 6)
-    # idx_lst.sort()
+    random.seed(0)
+    idx_lst = random.sample(range(1, 7), 2)
+    idx_lst.sort()
     df_train, df_valid, df_test = df_train_valid_test_split(
-        mydf[1:, :: upsampling],
+        mydf[idx_lst, :: upsampling],
         train_ratio=train_ratio, valid_ratio=valid_ratio)
     time_train, time_valid, time_test = train_valid_test_split(
         mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
     # Compare this prediction with the LE prediction
     n_length = 2*window_size+1
-    n_random_idx = 4
+    n_random_idx = 2
     t_lyap = 0.93**(-1)
     N_lyap = int(t_lyap / (dt*upsampling))
 

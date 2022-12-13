@@ -24,7 +24,6 @@ if gpus:
      # Virtual devices must be set before GPUs have been initialize
         print(e)
 sys.path.append('../..')
-
 from lstm.preprocessing.data_processing import (create_df_nd_random_md_mtm_idx,
                                                 df_train_valid_test_split,
                                                 train_valid_test_split)
@@ -35,7 +34,6 @@ from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_upd
 from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
 from lstm.lstm_model import build_pi_model
-from lstm.postprocessing.plots_mtm import plot_pred_save
 from lstm.utils.early_stopping import EarlyStopper
 physical_devices = tf.config.list_physical_devices('GPU')
 
@@ -52,7 +50,7 @@ def main():
         reset_random_seeds()
         config_defaults = {
             "learning_rate": 0.001,
-            "ref_weighing": 0.001,
+            "reg_weighing": 0.001,
             "batch_size": 32,
             "window_size": 100,
             "upsampling": 1,
@@ -85,10 +83,10 @@ def main():
 
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
         # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
-        random.seed(0)
-        idx_lst = random.sample(range(1, 7), 2)
-        idx_lst.sort()
-        df_train, df_valid, df_test = df_train_valid_test_split(mydf[idx_lst, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+        # random.seed(0)
+        # idx_lst = random.sample(range(1, 7), 2)
+        # idx_lst.sort()
+        df_train, df_valid, df_test = df_train_valid_test_split(mydf[1:, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(mydf[0, ::args.upsampling], train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
         sys_dim = df_train.shape[0]
         print(f'Dimension of system {sys_dim}')
@@ -249,21 +247,21 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [20, 50]
+                'values': [10, 20, 50]
             },
             'n_cells': {
                 'values': [100, 200]
             },
             'reg_weighing': {
-                'values': [0.0, 1e-6]
+                'values': [0.0, 1e-9, 1e-6]
             },
             'upsampling': {
-                'values': [5, 7, 10]
+                'values': [2, 4, 6, 8, 10]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-D22-6-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=24)
+    sweep_id = wandb.sweep(sweep_config, project="L96-D10-20-Sweep")
+    wandb.agent(sweep_id, function=run_lstm, count=90)
 
 
     print('Regularisation weight', args.reg_weighing)
@@ -272,4 +270,4 @@ def main():
 if __name__ == '__main__':
     main()
     
-# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_6_rk4_42500_0.01_stand13.33_trans.csv -dp ../models/test/
+# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_20_rk4_42500_0.01_stand13.33_trans.csv -dp ../l96/D20/D10-20/
