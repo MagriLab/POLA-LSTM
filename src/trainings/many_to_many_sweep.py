@@ -213,7 +213,7 @@ def main():
     parser.add_argument('--t_trans', type=int, default=100)
     parser.add_argument('--t_end', type=int, default=425)
     parser.add_argument('--upsampling', type=int, default=1)
-    parser.add_argument('--n_random_idx', type=int, default=10)
+    parser.add_argument('--n_random_idx', type=int, default=15)
     parser.add_argument('--lyap', type=float, default=0.93)
     parser.add_argument('--delta_t', type=float, default=0.01)
     parser.add_argument('--total_n', type=float, default=42500)
@@ -234,7 +234,7 @@ def main():
 
 
     sweep_config = {
-        'method': 'grid',
+        'method': 'random',
         'metric': {
             'name': 'valid_dd_loss',
             'goal': 'minimize'
@@ -247,10 +247,10 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [10, 20, 50]
+                'values': [10, 20]
             },
             'n_cells': {
-                'values': [100, 200]
+                'values': [100, 200, 500]
             },
             'reg_weighing': {
                 'values': [0.0, 1e-9, 1e-6]
@@ -260,8 +260,8 @@ def main():
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-D10-20-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=90)
+    sweep_id = wandb.sweep(sweep_config, project="L96-D15-20-Sweep")
+    wandb.agent(sweep_id, function=run_lstm, count=50)
 
 
     print('Regularisation weight', args.reg_weighing)
