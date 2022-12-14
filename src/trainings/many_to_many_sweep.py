@@ -213,7 +213,7 @@ def main():
     parser.add_argument('--t_trans', type=int, default=100)
     parser.add_argument('--t_end', type=int, default=425)
     parser.add_argument('--upsampling', type=int, default=1)
-    parser.add_argument('--n_random_idx', type=int, default=2)
+    parser.add_argument('--n_random_idx', type=int, default=10)
     parser.add_argument('--lyap', type=float, default=0.93)
     parser.add_argument('--delta_t', type=float, default=0.01)
     parser.add_argument('--total_n', type=float, default=42500)
