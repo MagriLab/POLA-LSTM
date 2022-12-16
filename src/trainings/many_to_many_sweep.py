@@ -4,7 +4,6 @@ import os
 import sys
 import time
 import warnings
-import random
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +33,9 @@ from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_upd
 from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
 from lstm.lstm_model import build_pi_model
+from lstm.postprocessing.lyapunov_spectrum import compute_lyapunov_exp, lyapunov_scatterplot, return_lyap_err
 from lstm.utils.early_stopping import EarlyStopper
+from lstm.closed_loop_tools_mtm import create_test_window
 physical_devices = tf.config.list_physical_devices('GPU')
 
 plt.rcParams["figure.facecolor"] = "w"
@@ -68,11 +69,10 @@ def main():
         print("WANDB Name", wand.name)
         print('Learning rate: ', wandb.config.learning_rate, args.learning_rate)
 
+        print(args.lyap_path)
+        ref_lyap = np.loadtxt(args.lyap_path)
+        print()
         filepath = args.data_path / str(wand.name)
-
-        if not os.path.exists(filepath / "images"):
-            os.makedirs(filepath / "images")
-
         reset_random_seeds()
         image_filepath = filepath / "images"
         image_filepath.mkdir(parents=True, exist_ok=True)
@@ -80,7 +80,6 @@ def main():
         logs_checkpoint.mkdir(parents=True, exist_ok=True)
         yaml_config_path = filepath / f'config.yml'
         generate_config(yaml_config_path, args)
-
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
         # mydf[1:,:] = mydf[1:,:]/(np.max(mydf[1:,:]) - np.min(mydf[1:,:]) )
         # random.seed(0)
@@ -94,8 +93,8 @@ def main():
         norm_time = 1
         N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
         # Windowing
-        train_dataset = create_df_nd_random_md_mtm_idx(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=args.n_random_idx)
-        valid_dataset = create_df_nd_random_md_mtm_idx(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
+        idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(df_train.transpose(), args.window_size, args.batch_size, df_train.shape[0], n_random_idx=args.n_random_idx)
+        _, valid_dataset = create_df_nd_random_md_mtm_idx(df_valid.transpose(), args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
         model = build_pi_model(args.n_cells, dim=sys_dim)
@@ -178,25 +177,35 @@ def main():
                     valid_loss_reg_tracker[-args.epoch_steps:])
                 N=10*N_lyap
                 pred = prediction(model, df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
-
-                img_filepath=filepath / "images" / f"pred_{epoch}.png",
+                img_filepath=filepath / "images" / f"{epoch}" 
                 #plot_pred_save(pred, df_valid, img_filepath)
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
                 pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
+                lyapunov_exponents = compute_lyapunov_exp(create_test_window(df_test, window_size=args.window_size), model, args, 50*N_lyap, sys_dim, idx_lst=idx_lst) 
+                # lyapunov_scatterplot(args.lyap_path, lyapunov_exponents, img_filepath, name=wand.name, second_img_filepath=(args.data_path / 'images'))
+                # lyapunov_scatterplot(ref_lyap, lyapunov_exponents, img_filepath=img_filepath)
+                # print(np.loadtxt(args.lyap_path))
+                max_lyap_percent_error, l_2_error = return_lyap_err(ref_lyap, lyapunov_exponents) 
+                print(max_lyap_percent_error, l_2_error)
                 wandb.log({'epochs': epoch,
                             'pred_horizon': float(pred_horizon),
+                            'max_lyap_err': float(max_lyap_percent_error), 
+                            'lyap_l2_error': float(l_2_error), 
                             'train_dd_loss': float(train_loss_dd/step),
                             'train_physics_loss': float(train_loss_reg/step),
                             'valid_dd_loss': float(valid_loss_dd/val_step),
                             'valid_physics_loss': float(valid_loss_reg/val_step)})
                 if early_stopper.early_stop(valid_loss_dd / val_step):
                     print('EARLY STOPPING')
+                    # lyapunov_scatterplot(args.lyap_path, lyapunov_exponents, img_filepath=img_filepath, name=wand.name, second_img_filepath=(args.data_path / 'images'))
                     break
+            
+        # lyapunov_scatterplot(args.lyap_path, lyapunov_exponents, img_filepath=img_filepath, name=wand.name, second_img_filepath=(args.data_path / 'images'))
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=2000)
-    parser.add_argument('--epoch_steps', type=int, default=200)
+    parser.add_argument('--n_epochs', type=int, default=10)
+    parser.add_argument('--epoch_steps', type=int, default=1)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -219,13 +228,13 @@ def main():
     parser.add_argument('--total_n', type=float, default=42500)
     parser.add_argument('--window_size', type=int, default=25)
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.45)
-    parser.add_argument('--valid_ratio', type=float, default=0.05)
+    parser.add_argument('--train_ratio', type=float, default=0.5)
+    parser.add_argument('--valid_ratio', type=float, default=0.1)
 
     # arguments to define paths
     # parser.add_argument( '--experiment_path', type=Path, required=True)
     # parser.add_argument('-idp', '--input_data_path', type=Path, required=True)
-    # parser.add_argument('--log-board_path', type=Path, required=True)
+    parser.add_argument('-lyp', '--lyap_path', type=Path, required=True)
     parser.add_argument('-dp', '--data_path', type=Path, required=True)
     parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
@@ -253,15 +262,15 @@ def main():
                 'values': [100, 200, 500]
             },
             'reg_weighing': {
-                'values': [0.0, 1e-9, 1e-6]
+                'values': [1e-9]
             },
             'upsampling': {
                 'values': [2, 4, 6, 8, 10]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-D15-20-Sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=50)
+    sweep_id = wandb.sweep(sweep_config, project="test-sweep")
+    wandb.agent(sweep_id, function=run_lstm, count=1)
 
 
     print('Regularisation weight', args.reg_weighing)
@@ -270,4 +279,4 @@ def main():
 if __name__ == '__main__':
     main()
     
-# python many_to_many_sweep.py  -cp /Yael_CSV/L96/dim_20_rk4_42500_0.01_stand13.33_trans.csv -dp ../l96/D20/D10-20/
+# python many_to_many_sweep.py  -cp Yael_CSV/L96/dim_20_rk4_42500_0.01_stand13.33_trans.csv -dp /l96/test/ -lyp ../models/l96/D20/lyapunov_exponents.txt
