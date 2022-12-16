@@ -163,39 +163,35 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/D6/dim_6_rk4_200000_0.01_stand13.33_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
 
 
-for name in [
- 'prime-sweep-12',
- 'glad-sweep-9',
- 'tough-sweep-21',
- 'different-sweep-4',
- 'serene-sweep-17',
- 'fresh-sweep-10',
- 'fearless-sweep-2',
- 'golden-sweep-3',
- 'laced-sweep-6']:
-    model_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D22-6/sweep') / name 
+for name in ['good-sweep-47',
+ 'zesty-sweep-50',
+ 'still-sweep-46',
+ 'glowing-sweep-48',
+ 'jolly-sweep-49',
+ 'tough-sweep-45']:
+    model_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96/D15-20/') / name 
     model_dict = load_config_to_dict(model_path)
 
-    dim = 2  # df_train.shape[0]
+    dim = 20  # df_train.shape[0]
     window_size = model_dict['DATA']['WINDOW_SIZE']
     n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
     epochs = max([int(i) for i in next(os.walk(model_path/'model'))[1]])
     dt = model_dict['DATA']['DELTA T']  # time step
     batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
     img_filepath = make_folder_filepath(model_path, 'images')
-    img_filapath_folder = make_folder_filepath(Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D22-6/sweep/'), 'images')
+    img_filapath_folder = make_folder_filepath(Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96/D15-20/'), 'images')
     model = load_model(model_path, epochs, model_dict, dim=dim)
     upsampling = model_dict['DATA']['UPSAMPLING']
     train_ratio = model_dict['DATA']['TRAINING RATIO']
     valid_ratio = model_dict['DATA']['VALID RATIO']
     random.seed(0)
-    idx_lst = random.sample(range(1, 7), 2)
+    idx_lst = random.sample(range(1, 21), 20)
     idx_lst.sort()
     df_train, df_valid, df_test = df_train_valid_test_split(
         mydf[idx_lst, :: upsampling],
@@ -204,8 +200,8 @@ for name in [
         mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
     # Compare this prediction with the LE prediction
     n_length = 2*window_size+1
-    n_random_idx = 2
-    t_lyap = 0.93**(-1)
+    n_random_idx = 15
+    t_lyap = 1.55**(-1)
     N_lyap = int(t_lyap / (dt*upsampling))
 
     train_dataset = create_df_nd_random_md_mtm_idx(
@@ -225,18 +221,17 @@ for name in [
     idx_lst.sort()
     print(idx_lst)
     # Set up parameters for LE computation
-    t_lyap = 1.0**(-1)
     start_time = time.time()
     norm_time = 1
     N_lyap = int(t_lyap/(upsampling*dt))
-    N = 500*N_lyap
+    N = 100*N_lyap
     Ntransient = max(int(N/100), window_size+2)
     N_test = N - Ntransient
     print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
     Ttot = np.arange(int(N_test/norm_time)) * (upsampling*dt) * norm_time
     N_test_norm = int(N_test/norm_time)
     print(f'N_test_norm: {N_test_norm}')
-    le_dim = 6
+    le_dim = 20
     # Lyapunov Exponents timeseries
     LE = np.zeros((N_test_norm, le_dim))
     # q and r matrix recorded in time
@@ -308,13 +303,13 @@ for name in [
 
     lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
-    ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D6/lyapunov_exponents.txt')
+    ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D20/lyapunov_exponents.txt')
     print(f'Reference exponents: {ref_lyap[-1, :]}')
     np.savetxt(f'{img_filepath}{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
-    n_lyap=6
+    n_lyap=20
     fullspace = np.arange(1,n_lyap+1)
     fs=12
-    ax = plt.figure(figsize=(7,3.5)).gca()
+    ax = plt.figure().gca()
 
     # plt.title(r'KS, $26/160 \to 160$ dof')
     plt.rcParams.update({'font.size': fs})
@@ -327,7 +322,7 @@ for name in [
     # plt.plot(fullspace, np.append(np.append(lyapunov_exp_loaded[-1, :7], [0, 0]), lyapunov_exp_loaded[-1, 7:n_lyap-2]),'b-^', markersize=6,label='LSTM - 2 shifted like Vlachas')
 
     plt.legend()
-    plt.savefig(img_filepath/f'{epochs}scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+    plt.savefig(img_filepath/f'{epochs}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
     plt.savefig(img_filapath_folder/f'{name}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
     plt.close()
     print(f'{name} : Lyapunov exponents: {lyapunov_exp[-1] } ')

@@ -136,9 +136,6 @@ def plot_phase_space(predictions, n_epochs, df_test, img_filepath=None, window_s
     ax1.set_xlabel("x")
     ax1.set_ylabel("y")
     ax1.set_zlabel("z")
-    # ax1.set_xlim(-1.1, 1.1)
-    # ax1.set_ylim(-1.1, 1.1)
-    # ax1.set_zlim(-1.1, 1.1)
     ax1.set_title("Numerical Solution")
     ax1.plot(x_fix, y_fix, z_fix, "x", color="tab:red", alpha=0.7)
     ax1.plot(-x_fix, -y_fix, z_fix, "x", color="tab:red", alpha=0.7)
@@ -386,8 +383,6 @@ def plot_error_closed_loop_lya_lim(
     axs[2, 0].set_xlabel("LT")
     fig.subplots_adjust(wspace=0.5)
     axs[2, 0].legend(loc="center left", bbox_to_anchor=(2.5, 2.0))
-    # axs[0, 1].set_xticklabels([])
-    # axs[1, 1].set_xticklabels([])
     if img_filepath != None:
         fig.savefig(img_filepath, dpi=200, facecolor="w", bbox_inches="tight")
         plt.close(fig)

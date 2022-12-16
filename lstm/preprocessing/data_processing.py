@@ -103,4 +103,4 @@ def create_df_nd_random_md_mtm_idx(series, window_size, batch_size, shuffle_buff
         lambda window: (tf.gather(window[:-1, :], idx_lst, axis=1), window[1:])
     )
     dataset = dataset.padded_batch(batch_size, padded_shapes=([None, n_random_idx], [None, n]))
-    return dataset
+    return idx_lst, dataset
