@@ -17,6 +17,7 @@ class EarlyStopper:
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = np.inf
+        self.stop = False
 
     def early_stop(self, validation_loss: float) -> bool:
         """Check if early stopping is necessary.
@@ -32,5 +33,6 @@ class EarlyStopper:
         elif validation_loss > (self.min_validation_loss + self.min_delta):
             self.counter += 1
             if self.counter >= self.patience:
+                self.stop = True
                 return True
         return False
