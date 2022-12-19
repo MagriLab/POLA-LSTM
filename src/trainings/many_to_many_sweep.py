@@ -202,7 +202,7 @@ def main():
     parser.add_argument('--l2_regularisation', type=float, default=0)
     parser.add_argument('--dropout', type=float, default=0.0)
 
-    parser.add_argument('--early_stop_patience', type=int, default=100)
+    parser.add_argument('--early_stop_patience', type=int, default=10 0)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -242,7 +242,7 @@ def main():
                 'values': [10, 20]
             },
             'n_cells': {
-                'values': [100, 200, 500]
+                'values': [50, 100, 200]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -251,12 +251,12 @@ def main():
                 'values': [2, 4, 6, 8, 10]
             },
             'n_random_idx': {
-                'values': [ 5, 4, 3, 2, 1]
+                'values': [2, 1]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-sweep-D10")
-    wandb.agent(sweep_id, function=run_lstm, count=225)
+    sweep_id = wandb.sweep(sweep_config, project="L63-sweep-D10")
+    wandb.agent(sweep_id, function=run_lstm, count=60)
 
 
 
@@ -264,3 +264,4 @@ if __name__ == '__main__':
     main()
 
 # python many_to_many_sweep.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp l96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+#  python many_to_many_sweep.py  -cp Yael_CSV/L63/rk4_100000_norm_trans.csv -dp l63/ -lyp Yael_CSV/L63/l63_lyapunov_exponents.txt
