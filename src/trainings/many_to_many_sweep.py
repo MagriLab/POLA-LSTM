@@ -41,30 +41,32 @@ tf.keras.backend.set_floatx('float64')
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
-@tf.function
-def train_step_reg(model, x_batch_train, y_batch_train, weight=1):
-    with tf.GradientTape() as tape:
-        one_step_pred = model(x_batch_train, training=True)
-        mse = tf.keras.losses.MeanSquaredError()
-        loss_dd = mse(y_batch_train, one_step_pred)
-        loss_reg = tf.nn.l2_loss(one_step_pred)
-        loss_value = loss_dd + weight*loss_reg
-    grads = tape.gradient(loss_value, model.trainable_weights)
-    model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
-    return loss_dd, loss_reg
 
-
-@tf.function
-def valid_step_reg(model, x_batch_valid, y_batch_valid):
-    val_logit = model(x_batch_valid, training=False)
-    mse = tf.keras.losses.MeanSquaredError()
-    loss_dd = mse(y_batch_valid, val_logit)
-    loss_reg = tf.nn.l2_loss(val_logit)
-    return loss_dd, loss_reg
 
 
 def main():
     def run_lstm():
+        @tf.function
+        def train_step_reg(model, x_batch_train, y_batch_train, weight=1):
+            with tf.GradientTape() as tape:
+                one_step_pred = model(x_batch_train, training=True)
+                mse = tf.keras.losses.MeanSquaredError()
+                loss_dd = mse(y_batch_train, one_step_pred)
+                loss_reg = tf.nn.l2_loss(one_step_pred)
+                loss_value = loss_dd + weight*loss_reg
+            grads = tape.gradient(loss_value, model.trainable_weights)
+            model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
+            return loss_dd, loss_reg
+
+
+        @tf.function
+        def valid_step_reg(model, x_batch_valid, y_batch_valid):
+            val_logit = model(x_batch_valid, training=False)
+            mse = tf.keras.losses.MeanSquaredError()
+            loss_dd = mse(y_batch_valid, val_logit)
+            loss_reg = tf.nn.l2_loss(val_logit)
+            return loss_dd, loss_reg
+
         reset_random_seeds()
         config_defaults = {
             "learning_rate": 0.001,
@@ -200,7 +202,7 @@ def main():
     parser.add_argument('--l2_regularisation', type=float, default=0)
     parser.add_argument('--dropout', type=float, default=0.0)
 
-    parser.add_argument('--early_stop_patience', type=int, default=200)
+    parser.add_argument('--early_stop_patience', type=int, default=100)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -224,7 +226,7 @@ def main():
     args = parser.parse_args()
 
     sweep_config = {
-        'method': 'random',
+        'method': 'grid',
         'metric': {
             'name': 'valid_dd_loss',
             'goal': 'minimize'
@@ -237,7 +239,7 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [10, 20, 50]
+                'values': [10, 20]
             },
             'n_cells': {
                 'values': [100, 200, 500]
@@ -249,16 +251,16 @@ def main():
                 'values': [2, 4, 6, 8, 10]
             },
             'n_random_idx': {
-                'values': [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+                'values': [ 5, 4, 3, 2, 1]
             }
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="L96-sweep-D10")
-    wandb.agent(sweep_id, function=run_lstm, count=1)
+    wandb.agent(sweep_id, function=run_lstm, count=225)
 
 
 
 if __name__ == '__main__':
     main()
 
-# python many_to_many_sweep.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp /l96/D10/test/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+# python many_to_many_sweep.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp l96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
