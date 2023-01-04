@@ -202,7 +202,7 @@ def main():
     parser.add_argument('--l2_regularisation', type=float, default=0)
     parser.add_argument('--dropout', type=float, default=0.0)
 
-    parser.add_argument('--early_stop_patience', type=int, default=10 0)
+    parser.add_argument('--early_stop_patience', type=int, default=100)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)

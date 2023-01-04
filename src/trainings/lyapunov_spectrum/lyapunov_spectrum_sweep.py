@@ -163,36 +163,62 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/lorenz96/CSV/D20/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L63/rk4_100000_norm_trans.csv',
     delimiter=",").astype(
     np.float64)
 
 
 
-for name in ['good-sweep-47',
- 'zesty-sweep-50',
- 'still-sweep-46',
- 'glowing-sweep-48',
- 'jolly-sweep-49',
- 'tough-sweep-45']:
-    model_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96/D15-20/') / name 
+for name in ['skilled-sweep-11',
+ 'dashing-sweep-20',
+ 'winter-sweep-32',
+ 'avid-sweep-13',
+ 'eternal-sweep-58',
+ 'deep-sweep-36',
+ 'radiant-sweep-55',
+ 'super-sweep-38',
+ 'dutiful-sweep-15',
+ 'legendary-sweep-53',
+ 'blooming-sweep-51',
+ 'kind-sweep-60',
+ 'dulcet-sweep-17',
+ 'glorious-sweep-31',
+ 'leafy-sweep-59',
+ 'solar-sweep-56',
+ 'classic-sweep-39',
+ 'ruby-sweep-34',
+ 'leafy-sweep-14',
+ 'apricot-sweep-16',
+ 'toasty-sweep-35',
+ 'elated-sweep-54',
+ 'dulcet-sweep-12',
+ 'legendary-sweep-57',
+ 'wandering-sweep-52',
+ 'different-sweep-19',
+ 'wandering-sweep-37',
+ 'fiery-sweep-33',
+ 'amber-sweep-18',
+ 'devoted-sweep-40']:
+    model_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l63/sweep/D10-1') / name 
     model_dict = load_config_to_dict(model_path)
 
-    dim = 20  # df_train.shape[0]
+    dim = 3  # df_train.shape[0]
     window_size = model_dict['DATA']['WINDOW_SIZE']
     n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-    epochs = max([int(i) for i in next(os.walk(model_path/'model'))[1]])
+    epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
+    print(f'Epochs {epochs}')
     dt = model_dict['DATA']['DELTA T']  # time step
     batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
     img_filepath = make_folder_filepath(model_path, 'images')
-    img_filapath_folder = make_folder_filepath(Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96/D15-20/'), 'images')
+    img_filapath_folder = make_folder_filepath(Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l63/sweep/D10-1'), 'images')
     model = load_model(model_path, epochs, model_dict, dim=dim)
     upsampling = model_dict['DATA']['UPSAMPLING']
     train_ratio = model_dict['DATA']['TRAINING RATIO']
     valid_ratio = model_dict['DATA']['VALID RATIO']
     random.seed(0)
-    idx_lst = random.sample(range(1, 21), 20)
+    idx_lst = random.sample(range(1, 4), 3)
     idx_lst.sort()
+    print(idx_lst)
     df_train, df_valid, df_test = df_train_valid_test_split(
         mydf[idx_lst, :: upsampling],
         train_ratio=train_ratio, valid_ratio=valid_ratio)
@@ -200,14 +226,15 @@ for name in ['good-sweep-47',
         mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
     # Compare this prediction with the LE prediction
     n_length = 2*window_size+1
-    n_random_idx = 15
-    t_lyap = 1.55**(-1)
+    n_random_idx = 1
+    t_lyap = 0.89**(-1)
     N_lyap = int(t_lyap / (dt*upsampling))
-
-    train_dataset = create_df_nd_random_md_mtm_idx(
+    print(df_train.shape)
+    idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
         df_train.transpose(),
         window_size, 256, df_train.shape[0],
         n_random_idx=n_random_idx)
+    print(type(train_dataset))
     for batch, label in train_dataset.take(1):
         print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
     batch_pred = model(batch)
@@ -217,21 +244,19 @@ for name in ['good-sweep-47',
 
     print('--- successfully initialized---')
     random.seed(0)
-    idx_lst = random.sample(range(dim), n_random_idx)
-    idx_lst.sort()
     print(idx_lst)
     # Set up parameters for LE computation
     start_time = time.time()
     norm_time = 1
     N_lyap = int(t_lyap/(upsampling*dt))
-    N = 100*N_lyap
+    N = 500*N_lyap
     Ntransient = max(int(N/100), window_size+2)
     N_test = N - Ntransient
     print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
     Ttot = np.arange(int(N_test/norm_time)) * (upsampling*dt) * norm_time
     N_test_norm = int(N_test/norm_time)
     print(f'N_test_norm: {N_test_norm}')
-    le_dim = 20
+    le_dim = 3
     # Lyapunov Exponents timeseries
     LE = np.zeros((N_test_norm, le_dim))
     # q and r matrix recorded in time
@@ -303,10 +328,10 @@ for name in ['good-sweep-47',
 
     lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
-    ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D20/lyapunov_exponents.txt')
+    ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L63/l63_lyapunov_exponents.txt')
     print(f'Reference exponents: {ref_lyap[-1, :]}')
     np.savetxt(f'{img_filepath}{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
-    n_lyap=20
+    n_lyap=3
     fullspace = np.arange(1,n_lyap+1)
     fs=12
     ax = plt.figure().gca()
