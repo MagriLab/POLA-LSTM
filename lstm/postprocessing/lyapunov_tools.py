@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import einops
 
+
 def lstm_step_comb(u_t, h, c, model, window_size, idx, idx_lst=None, dim=3):
     """Executes one LSTM step for the Lyapunov exponent computation
 
@@ -18,7 +19,7 @@ def lstm_step_comb(u_t, h, c, model, window_size, idx, idx_lst=None, dim=3):
         h (tf.EagerTensor): LSTM hidden state at time t+1
         c (tf.EagerTensor): LSTM cell state at time t+1
     """
-    if idx_lst==None:
+    if idx_lst == None:
         idx_lst = np.arange(0, u_t.shape[1])
     if idx > window_size:  # for correct Jacobian, must multiply W in the beginning
         u_t = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
@@ -93,7 +94,7 @@ def step_and_jac_analytical(u_t, h, c, model, window_size, idx, idx_lst, dim):
         h_new (tf.EagerTensor): LSTM hidden state at time t+1
         c_new (tf.EagerTensor): LSTM cell state at time t+1
     """
-    if idx_lst==None:
+    if idx_lst == None:
         idx_lst = np.arange(0, u_t.shape[1])
     n_cell = model.layers[1].get_weights()[0].shape[0]
     cell_dim = n_cell

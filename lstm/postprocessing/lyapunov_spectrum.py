@@ -10,17 +10,19 @@ import numpy as np
 import scipy
 import tensorflow as tf
 sys.path.append('../../')
-from lstm.postprocessing.lyapunov_tools import step_and_jac, step_and_jac_analytical, lstm_step_comb
-from lstm.utils.qr_decomp import qr_factorization
 from lstm.utils.supress_tf_warning import tensorflow_shutup
+from lstm.utils.qr_decomp import qr_factorization
+from lstm.postprocessing.lyapunov_tools import step_and_jac, step_and_jac_analytical, lstm_step_comb
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 
-def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict, argparse.Namespace], N: int, dim: int, le_dim:Optional[int]=None, idx_lst: Optional[List[int]] = None, save_path : Optional[Path]=None) -> np.ndarray:
+def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict, argparse.Namespace],
+                         N: int, dim: int, le_dim: Optional[int] = None, idx_lst: Optional[List[int]] = None,
+                         save_path: Optional[Path] = None) -> np.ndarray:
     """Compute the Lyapunov exponents for a given model.
-    
+
     Args:
         test_window (np.ndarray): starting point of computation
         model (Model): The model to use for the computation.
@@ -30,13 +32,13 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
         le_dim (int): Dimension of the Lyapunov exponent.
         idx_lst (List[int], optional): List of indices to use for the computation. If not specified, all indices will be used.
         save_path (Path, optional): If specified, the Lyapunov exponents will be saved to this path.
-    
+
     Returns:
         np.ndarray: A list of Lyapunov exponents, one for each index in `idx_lst` (or all indices if `idx_lst` is not specified).
     """
-    if le_dim==None:
+    if le_dim == None:
         le_dim = dim
-    if idx_lst==None:
+    if idx_lst == None:
         idx_lst = np.arange(0, dim)
     if type(model_dict) == dict:
         print('Identified Dictionary')
@@ -44,7 +46,7 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
         dt = model_dict['DATA']['DELTA T']  # time step
         upsampling = model_dict['DATA']['UPSAMPLING']
         window_size = model_dict['DATA']['WINDOW_SIZE']
-    elif type(model_dict) ==argparse.Namespace:
+    elif type(model_dict) == argparse.Namespace:
         model_dict = vars(model_dict)
         print('Identified argparse')
         n_cell = model_dict['n_cells']
@@ -131,8 +133,9 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
     return lyapunov_exp
 
 
-def lyapunov_scatterplot(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray, n_lyap: Optional[int] = None, img_filepath:Optional[Path]=None, name:Optional[str]=None,
-                         second_img_filepath:Optional[Path]=None)-> None:
+def lyapunov_scatterplot(
+        ref_lyap: np.ndarray, lyapunov_exp: np.ndarray, n_lyap: Optional[int] = None, img_filepath: Optional[Path] = None,
+        name: Optional[str] = None, second_img_filepath: Optional[Path] = None) -> None:
     """Create a scatterplot of the Lyapunov exponents for a given model.
 
     Args:
@@ -148,7 +151,7 @@ def lyapunov_scatterplot(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray, n_lyap:
     # If n_lyap is not specified, use the minimum of the number of exponents in the reference and the given exponents
     if n_lyap == None:
         n_lyap = min(ref_lyap.shape[1], lyapunov_exp.shape[1])
-    
+
     # Set up the plot
     fullspace = np.arange(1, n_lyap+1)
     print('Check1')
@@ -173,6 +176,7 @@ def lyapunov_scatterplot(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray, n_lyap:
     plt.close()
     print(f'{name} : Lyapunov exponents: {lyapunov_exp[-1] } ')
 
+
 def return_lyap_err(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray) -> Tuple[float, float]:
     """Compute the error between reference and given Lyapunov exponents.
 
@@ -180,17 +184,17 @@ def return_lyap_err(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray) -> Tuple[flo
     Args:
         ref_lyap_path (Path): Path to the file containing the reference Lyapunov exponents.
         lyapunov_exp (np.ndarray): Array of Lyapunov exponents to compare with the reference.
-    
+
     Returns:
         Tuple[float, float]: A tuple containing the maximum percent error and L2 error between the reference and given exponents.
     """
     # Use the minimum of the number of exponents in the reference and the given exponents
     n_lyap = min(ref_lyap.shape[1], lyapunov_exp.shape[1])
-    print(f'load path, {n_lyap}')    
+    print(f'load path, {n_lyap}')
     # Compute the maximum percent error
-    max_lyap_percent_error = np.abs(ref_lyap[-1, 0]- lyapunov_exp[-1, 0])/(ref_lyap[-1, 0])
-    
+    max_lyap_percent_error = np.abs(ref_lyap[-1, 0] - lyapunov_exp[-1, 0])/(ref_lyap[-1, 0])
+
     # Compute the L2 error
-    l_2_error = np.linalg.norm(ref_lyap[-1, :n_lyap]- lyapunov_exp[-1, :n_lyap])
-    
+    l_2_error = np.linalg.norm(ref_lyap[-1, :n_lyap] - lyapunov_exp[-1, :n_lyap])
+
     return max_lyap_percent_error, l_2_error

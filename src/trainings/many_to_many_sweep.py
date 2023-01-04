@@ -1,6 +1,6 @@
 
 import argparse
-import sys
+import sys, random
 import time
 import warnings
 from pathlib import Path
@@ -90,16 +90,18 @@ def main():
         print("WANDB Name", wand.name)
         ref_lyap = np.loadtxt(args.lyap_path)
         
-        filepath = args.data_path / f"D10-{args.n_random_idx}" / str(wand.name)
+        filepath = args.data_path / f"D10_partialpartial-{args.n_random_idx}" / str(wand.name)
         reset_random_seeds()
         image_filepath = make_folder_filepath(filepath, "images")
         logs_checkpoint = make_folder_filepath(filepath, "logs") 
         yaml_config_path = filepath / f'config.yml'
         generate_config(yaml_config_path, args)
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
-
+        idx_lst = random.sample(1, sys_dim+1, args.n_random_idx)
+        idx_lst.sort()
+        print(idx_lst)
         df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: args.upsampling],
+            mydf[idx_lst, :: args.upsampling],
             train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
 
         sys_dim = df_train.shape[0]
@@ -160,8 +162,7 @@ def main():
 
             if epoch % args.epoch_steps == 0 or early_stopper.stop:
                 print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-                model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
-                model.save_weights(model_checkpoint)
+               
                 save_and_update_loss_txt(
                     logs_checkpoint,
                     train_loss_dd_tracker[-args.epoch_steps:],
@@ -188,6 +189,8 @@ def main():
                     break
         loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_reg_tracker,
                             valid_loss_dd_tracker, valid_loss_reg_tracker)
+        model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+        model.save_weights(model_checkpoint)
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
@@ -239,10 +242,10 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [10, 20]
+                'values': [20]
             },
             'n_cells': {
-                'values': [50, 100, 200]
+                'values': [200]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -251,12 +254,12 @@ def main():
                 'values': [2, 4, 6, 8, 10]
             },
             'n_random_idx': {
-                'values': [2, 1]
+                'values': [2, 4, 6, 8]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L63-sweep-D10")
-    wandb.agent(sweep_id, function=run_lstm, count=60)
+    sweep_id = wandb.sweep(sweep_config, project="L96-partialpartial-sweep-D10")
+    wandb.agent(sweep_id, function=run_lstm, count=20)
 
 
 
