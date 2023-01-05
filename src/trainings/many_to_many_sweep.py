@@ -97,7 +97,7 @@ def main():
         yaml_config_path = filepath / f'config.yml'
         generate_config(yaml_config_path, args)
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
-        idx_lst = random.sample(1, sys_dim+1, args.n_random_idx)
+        idx_lst = random.sample(range(1, 10+1), args.n_random_idx)
         idx_lst.sort()
         print(idx_lst)
         df_train, df_valid, df_test = df_train_valid_test_split(
