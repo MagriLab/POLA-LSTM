@@ -190,7 +190,18 @@ def main():
 
                 max_lyap_percent_error, l_2_error = return_lyap_err(ref_lyap, lyapunov_exponents)
                 print(max_lyap_percent_error, l_2_error)
-                
+                model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+                model.save_weights(model_checkpoint)
+
+                if pi_weighing == 0:
+                    pi_weighing = 1e-10
+                    early_stopper.reset_counter()
+                elif pi_weighing == 1e-3:
+                    break
+                else:
+                    pi_weighing = pi_weighing*10
+                    early_stopper.reset_counter()
+
                 wandb.log({'epochs': epoch,
                     'pi_weighing': float(pi_weighing),
                     'pred_horizon': float(pred_horizon),
@@ -209,8 +220,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=2000)
-    parser.add_argument('--epoch_steps', type=int, default=200)
+    parser.add_argument('--n_epochs', type=int, default=20)
+    parser.add_argument('--epoch_steps', type=int, default=2)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -260,7 +271,7 @@ def main():
                 'values': [20]
             },
             'n_cells': {
-                'values': [50, 100]
+                'values': [20, 50, 100]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -269,15 +280,15 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [9]
+                'values': [9, 8, 7, 6, 5]
             },
             'pi_weighing': {
-                'values': [0, 1e-9, 1e-6, 1e-3]
+                'values': [0, 1e-6]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-9")
-    wandb.agent(sweep_id, function=run_lstm, count=12)
+    sweep_id = wandb.sweep(sweep_config, project="L96-adaptive_pi-sweep-D10")
+    wandb.agent(sweep_id, function=run_lstm, count=15)
 
 
 if __name__ == '__main__':
