@@ -190,14 +190,7 @@ def main():
 
                 max_lyap_percent_error, l_2_error = return_lyap_err(ref_lyap, lyapunov_exponents)
                 print(max_lyap_percent_error, l_2_error)
-                if pi_weighing == 0:
-                    pi_weighing = 1e-10
-                    early_stopper.reset_counter()
-                elif pi_weighing == 1e-3:
-                    break
-                else:
-                    pi_weighing = pi_weighing*10
-                    early_stopper.reset_counter()
+                
                 wandb.log({'epochs': epoch,
                     'pi_weighing': float(pi_weighing),
                     'pred_horizon': float(pred_horizon),
@@ -276,14 +269,14 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [9, 7, 5]
+                'values': [9]
             },
             'pi_weighing': {
-                'values': [0, 1e-6]
+                'values': [0, 1e-9, 1e-6, 1e-3]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-adaptive_pi-sweep-D10")
+    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-9")
     wandb.agent(sweep_id, function=run_lstm, count=12)
 
 
