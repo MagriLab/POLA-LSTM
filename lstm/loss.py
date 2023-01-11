@@ -19,7 +19,7 @@ def loss_oloop(y_true, y_pred, washout=0):
 
 
 @tf.function
-def loss_oloop_l2_reg(y_true, y_pred, washout=10, reg_weight=0.001):
+def loss_oloop_l2_reg(y_true, y_pred, washout=0, reg_weight=0.001):
     mse = tf.keras.losses.MeanSquaredError()
     loss = mse(y_true[washout:, :], y_pred[washout:, :]) + reg_weight * tf.nn.l2_loss(
         y_pred[washout:, :]

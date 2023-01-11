@@ -30,7 +30,7 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config['ML_CONSTRAINTS']['OPTIMIZER'] = args.optimizer
     config['ML_CONSTRAINTS']['ACTIVATION'] = args.activation
     config['ML_CONSTRAINTS']['LR'] = args.learning_rate
-    config['ML_CONSTRAINTS']['L2'] = args.l2_regularisation
+    config['ML_CONSTRAINTS']['PI WEIGHT'] = args.pi_weighing
     config['ML_CONSTRAINTS']['DROPOUT'] = args.dropout
     config['ML_CONSTRAINTS']['REG WEIGHT'] = args.reg_weighing
 

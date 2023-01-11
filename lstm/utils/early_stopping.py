@@ -3,7 +3,6 @@ import numpy as np
 
 class EarlyStopper:
     def __init__(self, patience: int, min_delta: float) -> None:
-
         """Early stopping mechanism to prevent overfitting.
 
         Attributes:
@@ -12,7 +11,7 @@ class EarlyStopper:
             counter (int): Number of epochs with no improvement.
             min_validation_loss (float): Minimum observed validation loss.
         """
-        
+
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
@@ -36,3 +35,9 @@ class EarlyStopper:
                 self.stop = True
                 return True
         return False
+    
+    def reset_counter(self):
+        """Reset counter to 0
+        """
+        self.counter = 0
+        self.stop = False

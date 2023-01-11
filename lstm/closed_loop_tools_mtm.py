@@ -51,11 +51,23 @@ def prediction_closed_loop(model, time_test, df_test, n_length, window_size=100,
     return lyapunov_time, predictions
 
 
-def lstm_step(window_input, h, c, model, i, dim=3):
-    if i > 100:
-        window_input = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
-                                  0]) + model.layers[1].get_weights()[1], shape=(1, dim))
-    z = tf.keras.backend.dot(window_input, model.layers[0].cell.kernel)
+def lstm_step(u_t, h, c, model, idx=0, dim=3):
+    """Executes one LSTM step for the Lyapunov exponent computation
+
+    Args:
+        u_t (tf.EagerTensor): differential equation at time t
+        h (tf.EagerTensor): LSTM hidden state at time t
+        c (tf.EagerTensor): LSTM cell state at time t
+        model (keras.Sequential): trained LSTM
+        idx (int): index of current iteration
+        dim (int, optional): dimension of the lorenz system. Defaults to 3.
+
+    Returns:
+        u_t (tf.EagerTensor): LSTM prediction at time t/t+1
+        h (tf.EagerTensor): LSTM hidden state at time t+1
+        c (tf.EagerTensor): LSTM cell state at time t+1
+    """
+    z = tf.keras.backend.dot(u_t, model.layers[0].cell.kernel)
     z += tf.keras.backend.dot(h, model.layers[0].cell.recurrent_kernel)
     z = tf.keras.backend.bias_add(z, model.layers[0].cell.bias)
 
@@ -67,10 +79,11 @@ def lstm_step(window_input, h, c, model, i, dim=3):
     o = tf.sigmoid(z3)
 
     h_new = o * tf.tanh(c_new)
-
-    out = tf.matmul(h_new, model.layers[1].get_weights()[0]) + model.layers[1].get_weights()[1]
-    return out, h_new, c_new
-
+   
+    u_t = tf.reshape(tf.matmul(h_new, model.layers[1].get_weights()[
+        0]) + model.layers[1].get_weights()[1], shape=(1, dim))
+    return u_t, h_new, c_new
+    
 def lstm_step_comb(u_t, h, c, model, idx, window_size, dim=3):
     """       Executes one LSTM step for the Lyapunov exponent computation
 
@@ -81,7 +94,7 @@ def lstm_step_comb(u_t, h, c, model, idx, window_size, dim=3):
             model (keras.Sequential): trained LSTM
             idx (int): index of current iteration
             dim (int, optional): dimension of the lorenz system. Defaults to 3.
-
+            window_size
         Returns:
             u_t (tf.EagerTensor): LSTM prediction at time t/t+1
             h (tf.EagerTensor): LSTM hidden state at time t+1
