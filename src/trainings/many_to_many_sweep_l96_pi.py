@@ -12,7 +12,7 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[1], 'GPU')
+        tf.config.set_visible_devices(gpus[2], 'GPU')
         tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
@@ -151,7 +151,7 @@ def main():
             train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
 
             print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd, loss_reg))
+            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd/step, loss_pi/step))
 
             valid_loss_dd = 0
             valid_loss_pi = 0
@@ -193,14 +193,14 @@ def main():
                 model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
                 model.save_weights(model_checkpoint)
 
-                if pi_weighing == 0:
-                    pi_weighing = 1e-10
-                    early_stopper.reset_counter()
-                elif pi_weighing == 1e-3:
-                    break
-                else:
-                    pi_weighing = pi_weighing*10
-                    early_stopper.reset_counter()
+                #if pi_weighing == 0:
+                #    pi_weighing = 1e-10
+                #    early_stopper.reset_counter()
+                #elif pi_weighing == 1e-3:
+                #    break
+                #eliflse:
+                #    pi_weighing = pi_weighing*10
+                #    early_stopper.reset_counter()
 
                 wandb.log({'epochs': epoch,
                     'pi_weighing': float(pi_weighing),
@@ -212,6 +212,7 @@ def main():
                     print('EARLY STOPPING')
                     early_stopper.reset_counter()
                     break
+            
 
         loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
                                 valid_loss_dd_tracker, valid_loss_pi_tracker)
@@ -220,8 +221,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=20)
-    parser.add_argument('--epoch_steps', type=int, default=2)
+    parser.add_argument('--n_epochs', type=int, default=2000)
+    parser.add_argument('--epoch_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -244,7 +245,7 @@ def main():
     parser.add_argument('--total_n', type=float, default=42500)
     parser.add_argument('--window_size', type=int, default=25)
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.5)
+    parser.add_argument('--train_ratio', type=float, default=0.25)
     parser.add_argument('--valid_ratio', type=float, default=0.1)
 
     # arguments to define paths
@@ -271,7 +272,7 @@ def main():
                 'values': [20]
             },
             'n_cells': {
-                'values': [20, 50, 100]
+                'values': [50, 100]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -280,16 +281,15 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [9, 8, 7, 6, 5]
+                'values': [9]
             },
             'pi_weighing': {
-                'values': [0, 1e-6]
+                'values': [1e-9, 1e-6, 1e-3, 0]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-adaptive_pi-sweep-D10")
-    wandb.agent(sweep_id, function=run_lstm, count=15)
-
+    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-9")
+    wandb.agent(sweep_id, function=run_lstm, count=8)
 
 if __name__ == '__main__':
     main()
