@@ -281,14 +281,14 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [9]
+                'values': [5]
             },
             'pi_weighing': {
                 'values': [1e-9, 1e-6, 1e-3, 0]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-9")
+    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-5")
     wandb.agent(sweep_id, function=run_lstm, count=8)
 
 if __name__ == '__main__':
