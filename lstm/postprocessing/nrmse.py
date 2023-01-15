@@ -40,3 +40,16 @@ def vpt(pred: np.ndarray, df_test: np.ndarray, threshold: float) -> int:
         if nrmse_i > threshold:
             return i-1
     return len(pred)
+
+def nrmse_array(pred: np.ndarray, df_test: np.ndarray) -> np.array:
+    """Calculate the normalized root mean square error (NRMSE) of a given prediction.
+        Return NRMSE over time
+    Args:
+        pred (np.ndarray): network prediction
+        df_test (np.ndarray): reference data 
+
+    Returns:
+        np.array: NRMSE index
+    """
+    nrmse_over_time = [nrmse(pred, df_test, n_length=i) for i in range(1, len(pred))]
+    return nrmse_over_time
