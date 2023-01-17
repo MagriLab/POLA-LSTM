@@ -160,10 +160,10 @@ def main():
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
             valid_loss_dd_tracker = np.append(valid_loss_dd_tracker, valid_loss_dd/val_step)
-            valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, val_loss_pi/val_step)
-            early_stopper.early_stop(valid_loss_dd / val_step)
+            valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, valid_loss_pi/val_step)
+            early_stopper.early_stop(valid_loss_dd/val_step + pi_weighing*valid_loss_pi/val_step)
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" %
-                  (valid_loss_dd / val_step, val_loss_pi / val_step))
+                  (valid_loss_dd / val_step, valid_loss_pi / val_step))
 
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
