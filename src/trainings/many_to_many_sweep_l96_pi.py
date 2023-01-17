@@ -221,7 +221,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=1000)
+    parser.add_argument('--n_epochs', type=int, default=5000)
     parser.add_argument('--epoch_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
@@ -232,7 +232,7 @@ def main():
     parser.add_argument('--dropout', type=float, default=0.0)
 
     parser.add_argument('--pi_weighing', type=float, default=0.0)
-    parser.add_argument('--early_stop_patience', type=int, default=50)
+    parser.add_argument('--early_stop_patience', type=int, default=100)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -245,7 +245,7 @@ def main():
     parser.add_argument('--total_n', type=float, default=42500)
     parser.add_argument('--window_size', type=int, default=25)
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.25)
+    parser.add_argument('--train_ratio', type=float, default=0.4)
     parser.add_argument('--valid_ratio', type=float, default=0.1)
 
     # arguments to define paths
@@ -272,7 +272,7 @@ def main():
                 'values': [20]
             },
             'n_cells': {
-                'values': [50]
+                'values': [50, 100]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -284,15 +284,15 @@ def main():
                 'values': [7]
             },
             'pi_weighing': {
-                'values': [0]
+                'values': [0, 1e-3, 1e-4, 1e-2, 1e-6]
             }
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-7")
-    wandb.agent(sweep_id, function=run_lstm, count=1)
+    wandb.agent(sweep_id, function=run_lstm, count=8)
 
 if __name__ == '__main__':
     main()
 
-# python many_to_many_sweep_l96_pi.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp l96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+# python many_to_many_sweep_l96_pi.py  -cp Yael_CSV/L96/l96_dim_10_euler_42500_0.01_stand13.33_trans.csv -dp l96/D10-7-euler/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
 #  python many_to_many_sweep.py  -cp Yael_CSV/L63/rk4_100000_norm_trans.csv -dp l63/ -lyp Yael_CSV/L63/l63_lyapunov_exponents.txt
