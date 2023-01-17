@@ -12,7 +12,7 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[2], 'GPU')
+        tf.config.set_visible_devices(gpus[1], 'GPU')
         tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
@@ -155,7 +155,7 @@ def main():
             train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
 
             print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd/step, loss_pi/step))
+            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (train_loss_dd/step, train_loss_pi/step))
 
             valid_loss_dd = 0
             valid_loss_pi = 0
@@ -164,10 +164,10 @@ def main():
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
             valid_loss_dd_tracker = np.append(valid_loss_dd_tracker, valid_loss_dd/val_step)
-            valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, val_loss_pi/val_step)
+            valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, valid_loss_pi/val_step)
             early_stopper.early_stop(valid_loss_dd / val_step)
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" %
-                  (valid_loss_dd / val_step, val_loss_pi / val_step))
+                  (valid_loss_dd / val_step, valid_loss_pi / val_step))
 
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
@@ -273,10 +273,10 @@ def main():
                 'values': [0.001]
             },
             'window_size': {
-                'values': [10, 20]
+                'values': [20]
             },
             'n_cells': {
-                'values': [20, 50]
+                'values': [ 50]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -293,7 +293,7 @@ def main():
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="L63-pi-sweep")
-    wandb.agent(sweep_id, function=run_lstm, count=40)
+    wandb.agent(sweep_id, function=run_lstm, count=10)
 
 if __name__ == '__main__':
     main()

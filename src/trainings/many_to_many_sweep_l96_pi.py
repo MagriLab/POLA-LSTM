@@ -12,7 +12,7 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[2], 'GPU')
+        tf.config.set_visible_devices(gpus[1], 'GPU')
         tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
@@ -221,7 +221,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=2000)
+    parser.add_argument('--n_epochs', type=int, default=1000)
     parser.add_argument('--epoch_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
@@ -232,7 +232,7 @@ def main():
     parser.add_argument('--dropout', type=float, default=0.0)
 
     parser.add_argument('--pi_weighing', type=float, default=0.0)
-    parser.add_argument('--early_stop_patience', type=int, default=100)
+    parser.add_argument('--early_stop_patience', type=int, default=50)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -272,7 +272,7 @@ def main():
                 'values': [20]
             },
             'n_cells': {
-                'values': [50, 100]
+                'values': [50]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -281,15 +281,15 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [5]
+                'values': [7]
             },
             'pi_weighing': {
-                'values': [1e-9, 1e-6, 1e-3, 0]
+                'values': [0]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-5")
-    wandb.agent(sweep_id, function=run_lstm, count=8)
+    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-7")
+    wandb.agent(sweep_id, function=run_lstm, count=1)
 
 if __name__ == '__main__':
     main()
