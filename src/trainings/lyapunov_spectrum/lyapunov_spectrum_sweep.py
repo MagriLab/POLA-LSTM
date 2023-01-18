@@ -162,27 +162,32 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
     return Jac, u_t_temp, h_new, c_new
 
 
+
+
+ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_lyapunov_exponents_euler.txt')
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
+    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/l96_dim_10_euler_125500_0.01_stand13.33_trans.csv',
+    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/l96/D10/sweep')
+sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96/D10-7-euler')
 
 
-for folder_name in ['D10-9']: #,'D10-10' next(os.walk(sweep_path))[1]:
-    sweep_models = [ 'fallen-sweep-62', 'grateful-sweep-119', 'glamorous-sweep-120', 'wobbly-sweep-68', 'laced-sweep-113', 'deep-sweep-67', 'colorful-sweep-18', 'bright-sweep-13', 'wild-sweep-61', 'grateful-sweep-69', 'graceful-sweep-63', 'fearless-sweep-19', 'curious-sweep-70', 'woven-sweep-14', 'iconic-sweep-65', 'leafy-sweep-64', 'faithful-sweep-116', 'winter-sweep-15', 'rare-sweep-114', 'prime-sweep-11']
-    print(sweep_models)
+for folder_name in ['D10_pi-7']:
+    sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
+        print(model_name)
         model_path = sweep_path / folder_name/ model_name 
         model_dict = load_config_to_dict(model_path)
 
         dim = 10 # df_train.shape[0]
-        n_random_idx = int(folder_name[-1])
+        n_random_idx = 7 #int(folder_name[-1])
         # dim = n_random_idx
         window_size = model_dict['DATA']['WINDOW_SIZE']
         n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
+        pi_weighing = model_dict['ML_CONSTRAINTS']['PI WEIGHT']
         epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
         print(f'Epochs {epochs}')
         dt = model_dict['DATA']['DELTA T']  # time step
@@ -193,7 +198,7 @@ for folder_name in ['D10-9']: #,'D10-10' next(os.walk(sweep_path))[1]:
         train_ratio = model_dict['DATA']['TRAINING RATIO']
         valid_ratio = model_dict['DATA']['VALID RATIO']
         random.seed(0)
-        idx_lst = random.sample(range(1, 10+1), n_random_idx)
+        idx_lst = random.sample(range(1, dim+1), n_random_idx)
         idx_lst.sort()
         print(idx_lst)
         df_train, df_valid, df_test = df_train_valid_test_split(
@@ -202,13 +207,12 @@ for folder_name in ['D10-9']: #,'D10-10' next(os.walk(sweep_path))[1]:
         time_train, time_valid, time_test = train_valid_test_split(
             mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
         # Compare this prediction with the LE prediction
-        n_length = 2*window_size+1
-        t_lyap = 1.55**(-1)
+        t_lyap = 1.5**(-1)
         N_lyap = int(t_lyap / (dt*upsampling))
         print(df_train.shape)
         idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
             df_train.transpose(),
-            window_size, 256, df_train.shape[0],
+            window_size, batch_size, df_train.shape[0],
             n_random_idx=n_random_idx)
         print(type(train_dataset))
         for batch, label in train_dataset.take(1):
@@ -225,7 +229,7 @@ for folder_name in ['D10-9']: #,'D10-10' next(os.walk(sweep_path))[1]:
         start_time = time.time()
         norm_time = 1
         N_lyap = int(t_lyap/(upsampling*dt))
-        N = 500*N_lyap
+        N = 1000*N_lyap
         Ntransient = max(int(N/100), window_size+2)
         N_test = N - Ntransient
         print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
@@ -304,10 +308,9 @@ for folder_name in ['D10-9']: #,'D10-10' next(os.walk(sweep_path))[1]:
 
         lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
-        ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_lyapunov_exponents.txt')
         print(f'Reference exponents: {ref_lyap[-1, :]}')
         np.savetxt(f'{img_filepath}{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
-        n_lyap=10
+        n_lyap=le_dim
         fullspace = np.arange(1,n_lyap+1)
         fs=12
         ax = plt.figure().gca()
@@ -323,7 +326,7 @@ for folder_name in ['D10-9']: #,'D10-10' next(os.walk(sweep_path))[1]:
         # plt.plot(fullspace, np.append(np.append(lyapunov_exp_loaded[-1, :7], [0, 0]), lyapunov_exp_loaded[-1, 7:n_lyap-2]),'b-^', markersize=6,label='LSTM - 2 shifted like Vlachas')
 
         plt.legend()
-        plt.savefig(img_filepath/f'{epochs}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
-        plt.savefig(img_filepath_folder/f'{model_name}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+        plt.savefig(img_filepath/f'{pi_weighing}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+        plt.savefig(img_filepath_folder/f'{pi_weighing}_{model_name}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
         plt.close()
         print(f'{model_name} : Lyapunov exponents: {lyapunov_exp[-1] } ')
