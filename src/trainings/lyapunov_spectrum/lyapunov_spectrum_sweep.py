@@ -10,6 +10,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import tensorflow as tf
+
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+        # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
+    try:
+        tf.config.set_visible_devices(gpus[2], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[2], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+      # Virtual devices must be set before GPUs have been initialize
+      print(e)
+
 sys.path.append('../../../')
 from lstm.closed_loop_tools_mtm import (compute_lyapunov_time_arr,
                                         create_test_window,
@@ -164,18 +177,18 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
 
 
 
-ref_lyap=np.loadtxt('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_lyapunov_exponents_euler.txt')
+ref_lyap=np.loadtxt('../Yael_CSV/L96/dim_10_lyapunov_exponents_euler.txt')
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/l96_dim_10_euler_125500_0.01_stand13.33_trans.csv',
+    '../Yael_CSV/L96/l96_dim_10_euler_125500_0.01_stand13.33_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96/D10-7-euler')
+sweep_path = Path('../l96/D10-7-euler')
 
 
 for folder_name in ['D10_pi-7']:
-    sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
+    sweep_models = ['wise-sweep-1', 'solar-sweep-2']#list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
         print(model_name)
