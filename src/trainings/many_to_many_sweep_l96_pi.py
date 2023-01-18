@@ -12,8 +12,8 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[1], 'GPU')
-        tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        tf.config.set_visible_devices(gpus[0], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[0], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
@@ -272,7 +272,7 @@ def main():
                 'values': [20]
             },
             'n_cells': {
-                'values': [50, 100]
+                'values': [ 100]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -281,15 +281,16 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [7]
+                'values': [5]
             },
             'pi_weighing': {
-                'values': [0, 1e-3, 1e-4, 1e-2, 1e-6]
+                'values': [ 1e-2, 1e-6]
             }
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-7")
-    wandb.agent(sweep_id, function=run_lstm, count=8)
+    sweep_id = wandb.sweep(sweep_config, project="L96-pi-sweep-D10-5")
+    wandb.agent(sweep_id, function=run_lstm, count=2)
+
 
 if __name__ == '__main__':
     main()
