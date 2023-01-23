@@ -187,7 +187,7 @@ mydf = np.genfromtxt(
 sweep_path = Path('../l96')
 
 
-for folder_name in ['D10_pi-9', 'D10_pi-8', 'D10_pi-6']:
+for folder_name in ['D10_pi-5', 'D10_pi-7', 'D10_pi-9', 'D10_pi-6']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
@@ -322,7 +322,7 @@ for folder_name in ['D10_pi-9', 'D10_pi-8', 'D10_pi-6']:
         lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
         print(f'Reference exponents: {ref_lyap[-1, :]}')
-        np.savetxt(f'{img_filepath}{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
+        np.savetxt(model_path/f'{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
         n_lyap=le_dim
         fullspace = np.arange(1,n_lyap+1)
         fs=12
