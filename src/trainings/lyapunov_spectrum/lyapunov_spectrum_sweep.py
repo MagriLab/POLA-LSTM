@@ -187,7 +187,7 @@ mydf = np.genfromtxt(
 sweep_path = Path('../l96')
 
 
-for folder_name in ['D10_pi-5', 'D10_pi-7', 'D10_pi-9', 'D10_pi-6']:
+for folder_name in ['D10_pi-9', 'D10_pi-6']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
