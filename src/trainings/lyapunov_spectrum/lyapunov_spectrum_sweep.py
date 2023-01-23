@@ -184,11 +184,11 @@ mydf = np.genfromtxt(
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('../l96/D10-7-euler')
+sweep_path = Path('../l96')
 
 
-for folder_name in ['D10_pi-7']:
-    sweep_models = ['wise-sweep-1', 'solar-sweep-2']#list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
+for folder_name in ['D10_pi-9', 'D10_pi-8', 'D10_pi-6']:
+    sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
         print(model_name)
@@ -196,7 +196,7 @@ for folder_name in ['D10_pi-7']:
         model_dict = load_config_to_dict(model_path)
 
         dim = 10 # df_train.shape[0]
-        n_random_idx = 7 #int(folder_name[-1])
+        n_random_idx = int(folder_name[-1])
         # dim = n_random_idx
         window_size = model_dict['DATA']['WINDOW_SIZE']
         n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
