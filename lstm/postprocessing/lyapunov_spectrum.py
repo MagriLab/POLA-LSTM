@@ -53,6 +53,8 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
         dt = model_dict['delta_t']  # time step
         upsampling = model_dict['upsampling']
         window_size = model_dict['window_size']
+    if le_dim > n_cell:
+        le_dim=n_cell
     norm_time = 1
     Ntransient = max(int(N/100), window_size+2)
     N_test = N - Ntransient
@@ -196,5 +198,27 @@ def return_lyap_err(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray) -> Tuple[flo
 
     # Compute the L2 error
     l_2_error = np.linalg.norm(ref_lyap[-1, :n_lyap] - lyapunov_exp[-1, :n_lyap])
+
+    return max_lyap_percent_error, l_2_error
+
+def return_lyap_err_ks(ref_lyap: np.ndarray, lyapunov_exp: np.ndarray) -> Tuple[float, float]:
+    """Compute the error between reference and given Lyapunov exponents.
+
+
+    Args:
+        ref_lyap_path (Path): Path to the file containing the reference Lyapunov exponents.
+        lyapunov_exp (np.ndarray): Array of Lyapunov exponents to compare with the reference.
+
+    Returns:
+        Tuple[float, float]: A tuple containing the maximum percent error and L2 error between the reference and given exponents.
+    """
+    # Use the minimum of the number of exponents in the reference and the given exponents
+    n_lyap = min(ref_lyap.shape[0], lyapunov_exp.shape[1])
+    # print(f'load path, {n_lyap}')
+    # Compute the maximum percent error
+    max_lyap_percent_error = np.abs(ref_lyap[0] - lyapunov_exp[-1, 0])/(ref_lyap[0])
+
+    # Compute the L2 error
+    l_2_error = np.linalg.norm(ref_lyap[:n_lyap] - lyapunov_exp[-1, :n_lyap])
 
     return max_lyap_percent_error, l_2_error
