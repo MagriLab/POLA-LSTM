@@ -217,8 +217,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=200)
-    parser.add_argument('--epoch_steps', type=int, default=25)
+    parser.add_argument('--n_epochs', type=int, default=1000)
+    parser.add_argument('--epoch_steps', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=200)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -229,7 +229,7 @@ def main():
     parser.add_argument('--washout', type=int, default=2)
 
     parser.add_argument('--pi_weighing', type=float, default=0.0)
-    parser.add_argument('--early_stop_patience', type=int, default=100)
+    parser.add_argument('--early_stop_patience', type=int, default=50)
     parser.add_argument('--reg_weighing', type=float, default=1e-9)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -243,7 +243,7 @@ def main():
     parser.add_argument('--n_random_idx', type=int, default=10)
     parser.add_argument('--lyap', type=float, default=0.08)
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.34)
+    parser.add_argument('--train_ratio', type=float, default=0.67)
     parser.add_argument('--valid_ratio', type=float, default=0.17)
     parser.add_argument('--ks_stand', type=float, default=3.58)
     parser.add_argument('--M', type=int, default=64)
@@ -275,9 +275,6 @@ def main():
             'window_size': {
                 'values': [20]
             },
-            'n_cells': {
-                'values': [200]
-            },
             'reg_weighing': {
                 'values': [1e-9]
             },
@@ -289,11 +286,15 @@ def main():
             },
             'pi_weighing': {
                 'values': [0, 1e-1, 1e-3,  1e-2, 1e-4,  1e-6]
-            }
+            },
+            'n_cells':{
+                'values': [ 200, 500]
+                }
+
         }
     }
     sweep_id = wandb.sweep(sweep_config, project="KS_128")
-    wandb.agent(sweep_id, function=run_lstm, count=36)
+    wandb.agent(sweep_id, function=run_lstm, count=72)
 
 
 if __name__ == '__main__':
