@@ -177,17 +177,17 @@ def step_and_jac_analytical(u_t, h, c, model, idx, dim):
 
 
 
-ref_lyap=np.loadtxt('../Yael_CSV/L96/dim_10_lyapunov_exponents_euler.txt')
+ref_lyap=np.loadtxt('../Yael_CSV/KS/le_128_64.txt')
 mydf = np.genfromtxt(
-    '../Yael_CSV/L96/l96_dim_10_euler_125500_0.01_stand13.33_trans.csv',
+    '../Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('../l96')
+sweep_path = Path('../ks/128dof') 
 
 
-for folder_name in ['D10_pi-9', 'D10_pi-6']:
+for folder_name in ['pi-128', 'pi-64']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
@@ -195,8 +195,8 @@ for folder_name in ['D10_pi-9', 'D10_pi-6']:
         model_path = sweep_path / folder_name/ model_name 
         model_dict = load_config_to_dict(model_path)
 
-        dim = 10 # df_train.shape[0]
-        n_random_idx = int(folder_name[-1])
+        dim = 128 # df_train.shape[0]
+        n_random_idx = int(folder_name[-3:])
         # dim = n_random_idx
         window_size = model_dict['DATA']['WINDOW_SIZE']
         n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
@@ -220,7 +220,7 @@ for folder_name in ['D10_pi-9', 'D10_pi-6']:
         time_train, time_valid, time_test = train_valid_test_split(
             mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
         # Compare this prediction with the LE prediction
-        t_lyap = 1.5**(-1)
+        t_lyap = 0.08**(-1)
         N_lyap = int(t_lyap / (dt*upsampling))
         print(df_train.shape)
         idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
@@ -242,14 +242,14 @@ for folder_name in ['D10_pi-9', 'D10_pi-6']:
         start_time = time.time()
         norm_time = 1
         N_lyap = int(t_lyap/(upsampling*dt))
-        N = 1000*N_lyap
+        N = 10*N_lyap
         Ntransient = max(int(N/100), window_size+2)
         N_test = N - Ntransient
         print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
         Ttot = np.arange(int(N_test/norm_time)) * (upsampling*dt) * norm_time
         N_test_norm = int(N_test/norm_time)
         print(f'N_test_norm: {N_test_norm}')
-        le_dim = 10
+        le_dim = 64
         # Lyapunov Exponents timeseries
         LE = np.zeros((N_test_norm, le_dim))
         # q and r matrix recorded in time
