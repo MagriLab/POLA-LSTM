@@ -15,8 +15,8 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
         # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[2], 'GPU')
-        tf.config.set_logical_device_configuration(gpus[2], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        tf.config.set_visible_devices(gpus[1], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
@@ -187,7 +187,7 @@ mydf = np.genfromtxt(
 sweep_path = Path('../ks/128dof') 
 
 
-for folder_name in ['pi-128', 'pi-64']:
+for folder_name in ['pi-032', 'pi-026', 'pi-021', 'pi-016', 'pi-013']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
@@ -242,7 +242,7 @@ for folder_name in ['pi-128', 'pi-64']:
         start_time = time.time()
         norm_time = 1
         N_lyap = int(t_lyap/(upsampling*dt))
-        N = 10*N_lyap
+        N = 500*N_lyap
         Ntransient = max(int(N/100), window_size+2)
         N_test = N - Ntransient
         print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
@@ -321,7 +321,7 @@ for folder_name in ['pi-128', 'pi-64']:
 
         lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
-        print(f'Reference exponents: {ref_lyap[-1, :]}')
+        print(f'Reference exponents: {ref_lyap[:]}')
         np.savetxt(model_path/f'{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
         n_lyap=le_dim
         fullspace = np.arange(1,n_lyap+1)
@@ -334,7 +334,7 @@ for folder_name in ['pi-128', 'pi-64']:
         plt.ylabel(r'$\lambda_k$',fontsize=fs)
         plt.xlabel(r'$k$',fontsize=fs)
             
-        plt.plot(fullspace, ref_lyap[-1, :n_lyap],'k-s', markersize=8,label='target')
+        plt.plot(fullspace, ref_lyap[ :n_lyap],'k-s', markersize=8,label='target')
         plt.plot(fullspace, lyapunov_exp[-1, :n_lyap],'r-o', markersize=6,label='LSTM')
         # plt.plot(fullspace, np.append(np.append(lyapunov_exp_loaded[-1, :7], [0, 0]), lyapunov_exp_loaded[-1, 7:n_lyap-2]),'b-^', markersize=6,label='LSTM - 2 shifted like Vlachas')
 
