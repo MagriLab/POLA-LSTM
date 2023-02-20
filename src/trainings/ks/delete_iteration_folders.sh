@@ -3,7 +3,7 @@ echo "Current working directory is: $(pwd)"
 
 cd 128dof
 # Find all subfolders of D10
-subfolders=$(ls -l | grep "^d" | awk '{print $9}')
+subfolders=$(ls -l | grep "^d" | awk '{print $9}'| grep -v "images")
 echo "first folders $subfolders"
 # For each subfolder
 for subfolder in $subfolders
