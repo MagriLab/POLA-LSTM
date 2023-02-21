@@ -15,8 +15,8 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
         # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[1], 'GPU')
-        tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        tf.config.set_visible_devices(gpus[0], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[0], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
@@ -187,7 +187,7 @@ mydf = np.genfromtxt(
 sweep_path = Path('../ks/128dof') 
 
 
-for folder_name in ['pi-032', 'pi-026', 'pi-021', 'pi-016', 'pi-013']:
+for folder_name in ['pi-064', 'pi-043', 'pi-013']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
