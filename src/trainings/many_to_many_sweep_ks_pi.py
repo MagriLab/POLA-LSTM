@@ -208,12 +208,14 @@ def main():
                     print('EARLY STOPPING')
                     early_stopper.reset_counter()
                     break
+                    
             
 
         loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
                                 valid_loss_dd_tracker, valid_loss_pi_tracker)
         model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
         model.save_weights(model_checkpoint)
+        tf.keras.backend.clear_session()    
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
@@ -229,7 +231,7 @@ def main():
     parser.add_argument('--washout', type=int, default=2)
 
     parser.add_argument('--pi_weighing', type=float, default=0.0)
-    parser.add_argument('--early_stop_patience', type=int, default=50)
+    parser.add_argument('--early_stop_patience', type=int, default=100)
     parser.add_argument('--reg_weighing', type=float, default=1e-9)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -282,19 +284,19 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [round(128/3), round(128/4), round(128/5), round(128/6)]
+                'values': [round(128/3), round(128/4), round(128/5), round(128/6),  round(128/7), round(128/8)]
             },
             'pi_weighing': {
-                'values': [100, 10, 1]
+                'values': [10000, 1000, 500]
             },
             'n_cells':{
-                'values': [ 200]
+                'values': [ 200, 100]
                 }
 
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="KS_128")
-    wandb.agent(sweep_id, function=run_lstm, count=12)
+    sweep_id = wandb.sweep(sweep_config, project="KS_128_test")
+    wandb.agent(sweep_id, function=run_lstm, count=36)
 
 
 if __name__ == '__main__':
