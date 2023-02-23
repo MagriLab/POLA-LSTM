@@ -187,9 +187,10 @@ mydf = np.genfromtxt(
 sweep_path = Path('../ks/128dof') 
 
 
-for folder_name in ['pi-064', 'pi-043', 'pi-013']:
+for folder_name in ['pi-021']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
+    sweep_models = ['volcanic-sweep-10']
     for model_name in sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name/ model_name 
@@ -242,7 +243,7 @@ for folder_name in ['pi-064', 'pi-043', 'pi-013']:
         start_time = time.time()
         norm_time = 1
         N_lyap = int(t_lyap/(upsampling*dt))
-        N = 500*N_lyap
+        N = 200*N_lyap
         Ntransient = max(int(N/100), window_size+2)
         N_test = N - Ntransient
         print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
