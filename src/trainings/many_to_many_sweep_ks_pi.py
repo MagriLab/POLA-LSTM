@@ -8,17 +8,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import wandb
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-    # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
-    try:
-        tf.config.set_visible_devices(gpus[1], 'GPU')
-        tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
-        logical_gpus = tf.config.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-     # Virtual devices must be set before GPUs have been initialize
-        print(e)
+# gpus = tf.config.list_physical_devices('GPU')
+# if gpus:
+#     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
+#     try:
+#         tf.config.set_visible_devices(gpus[1], 'GPU')
+#         tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+#         logical_gpus = tf.config.list_logical_devices('GPU')
+#         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#     except RuntimeError as e:
+#      # Virtual devices must be set before GPUs have been initialize
+#         print(e)
 sys.path.append('../..')
 from lstm.preprocessing.data_processing import (create_df_nd_random_md_mtm_idx,
                                                 df_train_valid_test_split)
@@ -290,13 +290,13 @@ def main():
                 'values': [10000, 1000, 500]
             },
             'n_cells':{
-                'values': [ 200, 100]
+                'values': [ 200]
                 }
 
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="KS_128_test")
-    wandb.agent(sweep_id, function=run_lstm, count=36)
+    sweep_id = wandb.sweep(sweep_config, project="KS_128")
+    wandb.agent(sweep_id, function=run_lstm, count=18)
 
 
 if __name__ == '__main__':
