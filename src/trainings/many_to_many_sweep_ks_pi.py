@@ -43,6 +43,42 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 def main():
     def run_lstm():
+        def ks_time_step_batch(u, d=60, M=16, h=0.25):
+            # u before (time_steps, dim) now (batch, window, dim)
+            N = u.shape[2]
+            k = np.transpose(np.conj(np.concatenate((np.arange(0, N/2), np.array([0]), np.arange(-N/2+1, 0))))) * (2*np.pi/d)
+            L = k**2 - k**4
+            E = np.exp(h*L)
+            E_2 = np.exp(h*L/2)
+            M =16
+            r = np.exp(1j*np.pi*(np.arange(1, M+1)-0.5) / M)
+            LR = h * np.transpose(np.repeat([L], M, axis=0)) + np.repeat([r], N, axis=0)
+            Q = h*np.real(np.mean((np.exp(LR/2)-1)/LR, axis=1))
+            f1 = h*np.real(np.mean((-4-LR+np.exp(LR)*(4-3*LR+LR**2))/LR**3, axis=1))
+            f2 = h*np.real(np.mean((2+LR+np.exp(LR)*(-2+LR))/LR**3, axis=1))
+            f3 = h*np.real(np.mean((-4-3*LR-LR**2+np.exp(LR)*(4-LR))/LR**3, axis=1))
+            g = -0.5j*k
+
+            u = tf.complex(u, tf.zeros(u.shape, dtype=u.dtype))
+            v = tf.transpose(tf.signal.fft3d(u), (0, 2, 1))  # (batch,dim, window)
+            Nv = tf.einsum('b j i,i->b i j', tf.signal.fft3d(tf.square(u)), g)
+            a = tf.einsum('b i j,i->b i j', v, E_2) + tf.einsum('b i j,i->b i j',
+                                                                Nv, Q)  # (dim, window) (dim,) (batch, dim, window)
+            Na = tf.einsum('b j i,i-> b i j', tf.signal.fft3d(tf.signal.ifft3d(tf.transpose(a, (0, 2, 1)))**2),
+                        g)  # (window, dim) (dim,) (batch, dim, window)
+            b = tf.einsum('b i j,i->b i j', v, E_2) + tf.einsum('b i j,i->b i j',
+                                                                Na, Q)  # (dim, window) (dim,) (batch, dim, window)
+            Nb = tf.einsum('b j i,i->b i j', tf.signal.fft3d(tf.signal.ifft3d(tf.transpose(b, (0, 2, 1)))**2),
+                        g)  # (window, dim) (dim,), (batch, dim, window)
+            c = tf.einsum('b i j,i->b i j', a, E_2) + tf.einsum('b i j,i->b i j',
+                                                                2*Nb-Nv, Q)  # (dim, window) (dim,)(batch, dim, window)
+            Nc = tf.einsum('b j i,i->b i j', tf.signal.fft3d(tf.signal.ifft3d(tf.transpose(c, (0, 2, 1)))**2),
+                        g)  # (window, dim) (dim,)(batch, dim, window)
+            diff_v = tf.einsum('b i j,i->b i j', Nv, f1) + tf.einsum('b i j,i->b i j', 2*(Na+Nb),
+                                                                    f2) + tf.einsum('b i j,i->b i j', Nc, f3)  # (batch, dim, window)
+            v = tf.einsum('b i j,i-> b i j', v, E) + diff_v  # (batch, dim, window)
+
+            return tf.math.real(tf.signal.ifft3d(tf.transpose(v, (0, 2, 1))))
 
         def pi_loss(one_step_pred, stand_val=1, washout=0):
             mse = tf.keras.losses.MeanSquaredError()
