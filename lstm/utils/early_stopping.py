@@ -35,7 +35,7 @@ class EarlyStopper:
                 self.stop = True
                 return True
         return False
-    
+
     def reset_counter(self):
         """Reset counter to 0
         """
