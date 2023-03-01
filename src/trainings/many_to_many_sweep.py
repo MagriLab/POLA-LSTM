@@ -10,7 +10,7 @@ import tensorflow as tf
 import wandb
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
-    # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
+    # Restrict TensorFlow to only allocate 3GB of memory on the first GPU
     try:
         tf.config.set_visible_devices(gpus[1], 'GPU')
         tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
