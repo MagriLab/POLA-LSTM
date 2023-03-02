@@ -1,10 +1,6 @@
-import argparse
-from pathlib import Path
 import numpy as np
 import tensorflow as tf
-
-from .loss import loss_oloop
-from .ks import ks_time_step_batch
+from .loss import Loss
 
 
 # class LSTMTrainer:
@@ -27,13 +23,15 @@ class LSTMRunner:
         self.system = system_name
         self.standard_norm = args.standard_norm
         self.reg_weight = args.reg_weighing
+        self.args = args
         self.pi_weight = args.pi_weighing
+
         if idx_lst == None:
             self.idx_lst = np.arange(0, self.sys_dim)
         else:
             self.idx_lst = idx_lst
-        self.args = args
 
+        self.loss = Loss(self.args, self.idx_lst, self.system)
         self.build_model()
 
     # def __call__(self, *args: Any, **kwds: Any) -> Any:
@@ -50,7 +48,7 @@ class LSTMRunner:
                 recurrent_initializer=recurrent_init))
         self.model.add(tf.keras.layers.Dense(self.sys_dim, name="Dense_1"))
         self.optimizer = tf.keras.optimizers.Adam()
-        self.model.compile(optimizer=self.optimizer, metrics=["mse"], loss=loss_oloop)
+        self.model.compile(optimizer=self.optimizer, metrics=["mse"], loss=self.loss.data_driven_loss)
 
 
     def load_model(self, model_path, epochs):
@@ -61,9 +59,9 @@ class LSTMRunner:
         self.change_weights(weight_reg, weight_pi)
         with tf.GradientTape() as tape:
             prediction = self.model(x_batch_train, training=True)
-            loss_dd = self.data_driven_loss(prediction, y_batch_train)
-            loss_reg = self.l2_loss(prediction)
-            loss_pi = self.pi_loss(prediction)
+            loss_dd = self.loss.data_driven_loss(prediction, y_batch_train)
+            loss_reg = self.loss.l2_loss(prediction)
+            loss_pi = self.loss.pi_loss(prediction)
             loss_sum = loss_dd + self.reg_weight*loss_reg + self.pi_weight*loss_pi
         grads = tape.gradient(loss_sum, self.model.trainable_weights)
         self.model.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
@@ -72,30 +70,10 @@ class LSTMRunner:
     @tf.function
     def valid_step_pi(self, x_batch_valid, y_batch_valid):
         prediction = self.model(x_batch_valid, training=True)
-        loss_dd = self.data_driven_loss(prediction, y_batch_valid)
-        loss_reg = self.l2_loss(prediction)
-        loss_pi = self.pi_loss(prediction)
+        loss_dd = self.loss.data_driven_loss(prediction, y_batch_valid)
+        loss_reg = self.loss.l2_loss(prediction)
+        loss_pi = self.loss.pi_loss(y_batch_valid)
         return loss_dd, loss_reg, loss_pi
-
-    @tf.function
-    def data_driven_loss(self, prediction, y_batch_train):
-        mse = tf.keras.losses.MeanSquaredError()
-        loss_dd = mse(tf.gather(y_batch_train, indices=self.idx_lst, axis=2),
-                      tf.gather(prediction, indices=self.idx_lst, axis=2))
-        return loss_dd
-
-    def l2_loss(self, prediction):
-        return tf.nn.l2_loss(prediction)
-
-    def pi_loss(self, prediction):
-        if self.system == 'l63':
-            print(f"{self.sys_dim} not defined yet")
-        if self.system == 'KS':
-            mse = tf.keras.losses.MeanSquaredError()
-            solver_time_step = ks_time_step_batch(prediction*self.standard_norm,
-                                                  d=self.args.d, M=self.args.M, h=self.args.h)
-            loss_pi = mse(prediction[:, 1:, :]*self.standard_norm, solver_time_step[:, :-1, :])
-            return loss_pi
 
     def change_weights(self, weight_reg, weight_pi):
         if weight_reg != None:

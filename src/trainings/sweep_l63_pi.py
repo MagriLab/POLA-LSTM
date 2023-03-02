@@ -1,3 +1,4 @@
+
 import argparse
 import sys
 import random
@@ -20,26 +21,27 @@ if gpus:
      # Virtual devices must be set before GPUs have been initialize
         print(e)
 sys.path.append('../..')
-from lstm.lorenz import l63_batch, backward_diff
+from lstm.closed_loop_tools_mtm import create_test_window
+from lstm.utils.early_stopping import EarlyStopper
+from lstm.postprocessing.lyapunov_spectrum import compute_lyapunov_exp, return_lyap_err
+from lstm.lstm_model import build_pi_model
+from lstm.postprocessing.nrmse import vpt
+from lstm.closed_loop_tools_mtm import prediction
+from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_update_loss_txt
+from lstm.utils.learning_rates import decayed_learning_rate
+from lstm.utils.config import generate_config
+from lstm.utils.random_seed import reset_random_seeds
+from lstm.utils.create_paths import make_folder_filepath
 from lstm.preprocessing.data_processing import (create_df_nd_random_md_mtm_idx,
                                                 df_train_valid_test_split)
-from lstm.utils.create_paths import make_folder_filepath
-from lstm.utils.random_seed import reset_random_seeds
-from lstm.utils.config import generate_config
-from lstm.utils.learning_rates import decayed_learning_rate
-from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_update_loss_txt
-from lstm.closed_loop_tools_mtm import prediction
-from lstm.postprocessing.nrmse import vpt
-from lstm.lstm_model import build_pi_model
-from lstm.postprocessing.lyapunov_spectrum import compute_lyapunov_exp, return_lyap_err
-from lstm.utils.early_stopping import EarlyStopper
-from lstm.closed_loop_tools_mtm import create_test_window
+from lstm.lorenz import l63_batch, backward_diff
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-norm_val_arr = 1 #tf.constant([21.29, 29.01, 53.75], dtype=tf.int64)
+norm_val_arr = 1  # tf.constant([21.29, 29.01, 53.75], dtype=tf.int64)
+
 
 def main():
     def run_lstm():
@@ -124,14 +126,12 @@ def main():
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
 
-
         filepath = args.data_path / f"pi-{idx_lst}" / str(wand.name)
         reset_random_seeds()
         image_filepath = make_folder_filepath(filepath, "images")
         logs_checkpoint = make_folder_filepath(filepath, "logs")
         yaml_config_path = filepath / f'config.yml'
         generate_config(yaml_config_path, args)
-
 
         model = build_pi_model(args.n_cells, dim=sys_dim)
 
@@ -155,7 +155,8 @@ def main():
             train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
 
             print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (train_loss_dd/step, train_loss_pi/step))
+            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" %
+                  (train_loss_dd / step, train_loss_pi / step))
 
             valid_loss_dd = 0
             valid_loss_pi = 0
@@ -197,26 +198,25 @@ def main():
                 model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
                 model.save_weights(model_checkpoint)
 
-                #if pi_weighing == 0:
+                # if pi_weighing == 0:
                 #    pi_weighing = 1e-10
                 #    early_stopper.reset_counter()
-                #elif pi_weighing == 1e-3:
+                # elif pi_weighing == 1e-3:
                 #    break
-                #eliflse:
+                # eliflse:
                 #    pi_weighing = pi_weighing*10
                 #    early_stopper.reset_counter()
 
                 wandb.log({'epochs': epoch,
-                    'pi_weighing': float(pi_weighing),
-                    'pred_horizon': float(pred_horizon),
-                    'max_lyap_err': float(max_lyap_percent_error),
-                    'lyap_l2_error': float(l_2_error)
-                    })
+                           'pi_weighing': float(pi_weighing),
+                           'pred_horizon': float(pred_horizon),
+                           'max_lyap_err': float(max_lyap_percent_error),
+                           'lyap_l2_error': float(l_2_error)
+                           })
                 if early_stopper.stop:
                     print('EARLY STOPPING')
                     early_stopper.reset_counter()
                     break
-            
 
         loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
                                 valid_loss_dd_tracker, valid_loss_pi_tracker)
@@ -276,7 +276,7 @@ def main():
                 'values': [20]
             },
             'n_cells': {
-                'values': [ 50]
+                'values': [50]
             },
             'reg_weighing': {
                 'values': [1e-9]
@@ -294,6 +294,7 @@ def main():
     }
     sweep_id = wandb.sweep(sweep_config, project="L63-pi-sweep")
     wandb.agent(sweep_id, function=run_lstm, count=10)
+
 
 if __name__ == '__main__':
     main()

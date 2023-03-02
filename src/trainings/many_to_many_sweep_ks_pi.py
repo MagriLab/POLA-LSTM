@@ -26,11 +26,10 @@ from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.utils.config import generate_config
 from lstm.utils.learning_rates import decayed_learning_rate
-from lstm.postprocessing.loss_saver import loss_arr_to_tensorboard, save_and_update_loss_txt
 from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
-from lstm.ks import ks_time_step_batch
-from lstm.lstm_model import build_pi_model
+from lstm.lstm import LSTMRunner
+from lstm.utils.loss_tracker import LossTracker
 from lstm.postprocessing.lyapunov_spectrum import compute_lyapunov_exp, return_lyap_err_ks
 from lstm.utils.early_stopping import EarlyStopper
 from lstm.closed_loop_tools_mtm import create_test_window
@@ -43,36 +42,6 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 def main():
     def run_lstm():
-
-        def pi_loss(one_step_pred, stand_val=1, washout=0):
-            mse = tf.keras.losses.MeanSquaredError()
-            pi_loss = mse(one_step_pred[:, 1:, :]*stand_val, ks_time_step_batch(one_step_pred*stand_val, d=args.d, M=args.M, h=args.h)[:, :-1, :])
-            return pi_loss
-
-        @tf.function
-        def train_step_pi(model, x_batch_train, y_batch_train, weight_reg=1, weight_pi=0.0):
-            with tf.GradientTape() as tape:
-                one_step_pred = model(x_batch_train, training=True)
-                mse = tf.keras.losses.MeanSquaredError()
-                loss_dd = mse(tf.gather(y_batch_train, indices=idx_lst, axis=2),
-                              tf.gather(one_step_pred, indices=idx_lst, axis=2))
-                loss_reg = tf.nn.l2_loss(one_step_pred)
-                loss_pi = pi_loss(one_step_pred, stand_val=args.ks_stand)
-                loss_value = loss_dd + weight_reg*loss_reg + weight_pi*loss_pi
-            grads = tape.gradient(loss_value, model.trainable_weights)
-            model.optimizer.apply_gradients(zip(grads, model.trainable_weights))
-            return loss_dd, loss_reg, loss_pi
-
-        @tf.function
-        def valid_step_pi(model, x_batch_valid, y_batch_valid):
-            val_logit = model(x_batch_valid, training=False)
-            mse = tf.keras.losses.MeanSquaredError()
-            loss_dd = mse(tf.gather(y_batch_valid, indices=idx_lst, axis=2),
-                          tf.gather(val_logit, indices=idx_lst, axis=2))
-            true_loss_val = mse(y_batch_valid, val_logit)
-            loss_reg = tf.nn.l2_loss(val_logit)
-            loss_pi = pi_loss(val_logit, stand_val=args.ks_stand)
-            return loss_dd, loss_reg, loss_pi, true_loss_val
 
         reset_random_seeds()
         config_defaults = {
@@ -102,7 +71,6 @@ def main():
 
         filepath = args.data_path / f"pi-{args.n_random_idx}" / str(wand.name)
         reset_random_seeds()
-        image_filepath = make_folder_filepath(filepath, "images")
         logs_checkpoint = make_folder_filepath(filepath, "logs")
         yaml_config_path = filepath / f'config.yml'
         generate_config(yaml_config_path, args)
@@ -128,26 +96,21 @@ def main():
             args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
-        model = build_pi_model(args.n_cells, dim=sys_dim)
-
+        runner = LSTMRunner(args, system_name='KS')
+        model = runner.model
+        loss_tracker = LossTracker(logs_checkpoint)
         early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-6)
-        train_loss_dd_tracker = np.array([])
-        train_loss_pi_tracker = np.array([])
-        valid_loss_dd_tracker = np.array([])
-        valid_loss_pi_tracker = np.array([])
-        true_loss_val_tracker = np.array([])
+
         for epoch in range(1, args.n_epochs+1):
             model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
             start_time = time.time()
             train_loss_dd = 0
             train_loss_pi = 0
             for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-                loss_dd, loss_reg, loss_pi = train_step_pi(model, x_batch_train, y_batch_train,
-                                                           weight_reg=args.reg_weighing, weight_pi=pi_weighing)
+                loss_dd, loss_reg, loss_pi = runner.train_step_pi(x_batch_train, y_batch_train)
                 train_loss_dd += loss_dd
                 train_loss_pi += loss_pi
-            train_loss_dd_tracker = np.append(train_loss_dd_tracker, train_loss_dd/step)
-            train_loss_pi_tracker = np.append(train_loss_pi_tracker, train_loss_pi/step)
+            loss_tracker.append_loss_to_tracker('train', train_loss_dd, loss_reg, train_loss_pi, step)
 
             print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
             print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd/step, loss_pi/step))
@@ -155,36 +118,26 @@ def main():
             valid_loss_dd = 0
             valid_loss_pi = 0
             for val_step, (x_batch_valid, y_batch_valid) in enumerate(valid_dataset):
-                val_loss_dd, val_loss_reg, val_loss_pi, true_loss_val = valid_step_pi(model, x_batch_valid, y_batch_valid)
+                val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
-            valid_loss_dd_tracker = np.append(valid_loss_dd_tracker, valid_loss_dd/val_step)
-            valid_loss_pi_tracker = np.append(valid_loss_pi_tracker, valid_loss_pi/val_step)
-            true_loss_val_tracker = np.append(true_loss_val_tracker, true_loss_val/val_step)
-            early_stopper.early_stop(valid_loss_dd/val_step + pi_weighing*valid_loss_pi/val_step)
+            loss_tracker.append_loss_to_tracker('valid', valid_loss_dd, valid_loss_reg, valid_loss_pi, val_step)
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
-                  (valid_loss_dd / val_step, valid_loss_pi / val_step, true_loss_val/val_step))
+                  (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
+            loss_tracker.save_and_update_loss_txt(logs_checkpoint)
 
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
                        'train_physics_loss': float(train_loss_pi/step),
                        'valid_dd_loss': float(valid_loss_dd/val_step),
-                       'valid_full_dd_loss': float(true_loss_val/val_step),
+                       'valid_full_dd_loss': float(valid_loss_dd/val_step),
                        'valid_physics_loss': float(valid_loss_pi/val_step)})
 
             if epoch % args.epoch_steps == 0 or early_stopper.stop:
                 print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-
-                save_and_update_loss_txt(
-                    logs_checkpoint,
-                    train_loss_dd_tracker[-args.epoch_steps:],
-                    train_loss_pi_tracker[-args.epoch_steps:],
-                    valid_loss_dd_tracker[-args.epoch_steps:],
-                    valid_loss_pi_tracker[-args.epoch_steps:])
                 N = 10*N_lyap
 
                 pred = prediction(model, df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
-
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
                 pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
 
@@ -211,16 +164,15 @@ def main():
                     
             
 
-        loss_arr_to_tensorboard(logs_checkpoint, train_loss_dd_tracker, train_loss_pi_tracker,
-                                valid_loss_dd_tracker, valid_loss_pi_tracker)
+        loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
         model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
         model.save_weights(model_checkpoint)
         tf.keras.backend.clear_session()    
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=1000)
-    parser.add_argument('--epoch_steps', type=int, default=100)
+    parser.add_argument('--n_epochs', type=int, default=5)
+    parser.add_argument('--epoch_steps', type=int, default=1)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=200)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -240,6 +192,7 @@ def main():
     parser.add_argument('--delta_t', type=float, default=0.25)
     parser.add_argument('--total_n', type=float, default=99000)
     parser.add_argument('--window_size', type=int, default=25)
+    parser.add_argument('--sys_dim', type=float, default=128)
 
     parser.add_argument('--upsampling', type=int, default=1)
     parser.add_argument('--n_random_idx', type=int, default=10)
@@ -247,7 +200,7 @@ def main():
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
     parser.add_argument('--train_ratio', type=float, default=0.67)
     parser.add_argument('--valid_ratio', type=float, default=0.17)
-    parser.add_argument('--ks_stand', type=float, default=3.58)
+    parser.add_argument('--standard_norm', type=float, default=3.58)
     parser.add_argument('--M', type=int, default=64)
     parser.add_argument('--N', type=int, default=128)
     parser.add_argument('--h', type=float, default=0.25)
@@ -287,20 +240,20 @@ def main():
                 'values': [round(128/3), round(128/4), round(128/5), round(128/6),  round(128/7), round(128/8)]
             },
             'pi_weighing': {
-                'values': [10000, 1000, 500]
+                'values': [1]
             },
             'n_cells':{
-                'values': [ 200]
+                'values': [10]
                 }
 
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="KS_128")
-    wandb.agent(sweep_id, function=run_lstm, count=18)
+    sweep_id = wandb.sweep(sweep_config, project="test")
+    wandb.agent(sweep_id, function=run_lstm, count=1)
 
 
 if __name__ == '__main__':
     main()
 
-# python many_to_many_sweep_ks_pi.py  -cp Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv -dp ks/128dof/ -lyp Yael_CSV/KS/le_128_64.txt
+# python many_to_many_sweep_ks_pi.py  -cp Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv -dp test/ -lyp Yael_CSV/KS/le_128_64.txt
 
