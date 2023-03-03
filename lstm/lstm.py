@@ -72,7 +72,7 @@ class LSTMRunner:
         prediction = self.model(x_batch_valid, training=True)
         loss_dd = self.loss.data_driven_loss(prediction, y_batch_valid)
         loss_reg = self.loss.l2_loss(prediction)
-        loss_pi = self.loss.pi_loss(y_batch_valid)
+        loss_pi = self.loss.pi_loss(prediction)
         return loss_dd, loss_reg, loss_pi
 
     def change_weights(self, weight_reg, weight_pi):

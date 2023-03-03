@@ -243,5 +243,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# python sweep_l96_pi.py  -cp Yael_CSV/L96/l96_dim_10_euler_42500_0.01_stand13.33_trans.csv -dp l96/D10-7-euler/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
-#  python many_to_many_sweep.py  -cp Yael_CSV/L63/rk4_100000_norm_trans.csv -dp l63/ -lyp Yael_CSV/L63/l63_lyapunov_exponents.txt
+# python sweep_l96_pi.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp test/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt

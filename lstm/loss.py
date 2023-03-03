@@ -1,6 +1,6 @@
 import tensorflow as tf
 from .ks import ks_time_step_batch
-from .lorenz96 import l96_batch, backward_diff
+from .lorenz96 import RK4_step_l96
 
 class Loss():
     def __init__(self, args, idx_lst, system) -> None:
@@ -29,7 +29,8 @@ class Loss():
             # missing_idx = list(set(range(0, self.args.sys_dim)).difference(self.idx_lst))
             # loss_pi = mse(tf.gather(backward_diff(prediction*self.args.standard_norm), missing_idx, axis=2),
             #               tf.gather(l96_batch(prediction*self.args.standard_norm, p=8)[:, :-1, :], missing_idx, axis=2))
-            loss_pi = mse(backward_diff(prediction*self.args.standard_norm), l96_batch(prediction*self.args.standard_norm, p=8)[:, :-1, :])
+            
+            loss_pi = mse(prediction[:, 1:, :]*self.args.standard_norm, RK4_step_l96(prediction*self.args.standard_norm, delta_t=self.args.delta_t)[:, :-1, :])
         else:
             print(f"{self.system} not defined yet")
             loss_pi=0.0
