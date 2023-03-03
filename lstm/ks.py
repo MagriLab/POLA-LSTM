@@ -63,13 +63,36 @@ def ks_time_step_array(u, d=60, M=16, h=0.25):
 
 
 def ks_time_step_batch(u, d=60, M=16, h=0.25):
-    # u before (time_steps, dim) now (batch, window, dim)
+    """ Propagates the LSTM prediction for the 1D Kuramoto-Sivashinsky equation by one time step. 
+        Equation is given by
+        u_t + u*u_x + u_xx + u_xxxx = 0,
+        with periodic BCs on x \in [0, 2*pi*L]: u(x+2*pi*L,t) = u(x,t).
+
+        The nature of the solution depends on the system size L and on the initial
+        condition u(x,0).  Energy enters the system at long wavelengths via u_xx
+        (an unstable diffusion term), cascades to short wavelengths due to the
+        nonlinearity u*u_x, and dissipates via diffusion with u_xxxx.
+
+        Spatial  discretization: spectral (Fourier)
+        Temporal discretization: exponential time differencing fourth-order Runge-Kutta
+        see AK Kassam and LN Trefethen, SISC 2005
+
+    Args:
+        u (tf tensor): prediction of the LSTM of shape  (batch, dim, window)
+        d (int, optional):Corresponds to 2*pi*L Defaults to 60.
+        M (int, optional):no. of points for complex means. Defaults to 16.
+        h (float, optional): time step. Defaults to 0.25.
+
+    Returns:
+        _type_: _description_
+    """
+
     N = u.shape[2]
     k = np.transpose(np.conj(np.concatenate((np.arange(0, N/2), np.array([0]), np.arange(-N/2+1, 0))))) * (2*np.pi/d)
     L = k**2 - k**4
     E = np.exp(h*L)
     E_2 = np.exp(h*L/2)
-    M =16
+    M = 16
     r = np.exp(1j*np.pi*(np.arange(1, M+1)-0.5) / M)
     LR = h * np.transpose(np.repeat([L], M, axis=0)) + np.repeat([r], N, axis=0)
     Q = h*np.real(np.mean((np.exp(LR/2)-1)/LR, axis=1))

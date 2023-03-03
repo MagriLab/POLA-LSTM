@@ -189,7 +189,7 @@ print('Analytical derivative')
 
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/L60/KS_160_dx60_rk4_99000_stand_3.52_deltat_0.25_trans.csv',
+    '../Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/KS_80_2n_dx60_rk4_99000_stand_3.47_deltat_0.25_trans.csv',
     delimiter=",").astype(
     np.float64)

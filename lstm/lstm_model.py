@@ -1,24 +1,6 @@
-import argparse
-from pathlib import Path
-
 import tensorflow as tf
 
 from .loss import loss_oloop
-
-lorenz_dim = 3
-
-
-def build_open_loop_lstm(cells=100):
-    model = tf.keras.Sequential()
-    kernel_init = tf.keras.initializers.GlorotUniform(seed=1)
-    recurrent_init = tf.keras.initializers.Orthogonal(seed=1)
-    model.add(tf.keras.layers.LSTM(cells, activation="tanh", name="LSTM_1"))
-    model.add(tf.keras.layers.Dense(lorenz_dim, name="Dense_1"))
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=0.001, decay_steps=32000, decay_rate=0.75)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-    model.compile(loss=loss_oloop, optimizer=optimizer, metrics=["mse"])
-    return model
 
 
 def build_pi_model(cells=100, dim=3):

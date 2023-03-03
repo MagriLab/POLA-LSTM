@@ -1,121 +1,45 @@
 import tensorflow as tf
+from .ks import ks_time_step_batch
+from .lorenz96 import RK4_step_l96
 
-from .lorenz import norm_lorenz, norm_lorenz_batch
+class Loss():
+    def __init__(self, args, idx_lst, system) -> None:
+        self.args = args
+        self.idx_lst = idx_lst
+        self.system = system
+        pass
+    
+    @tf.function
+    def data_driven_loss(self, prediction, y_batch_train):
+        mse = tf.keras.losses.MeanSquaredError()
+        loss_dd = mse(tf.gather(y_batch_train, indices=self.idx_lst, axis=2),
+                      tf.gather(prediction, indices=self.idx_lst, axis=2))
+        return loss_dd
 
-x_max = 19.619508366918392
-y_max = 27.317051197038307
-z_max = 48.05371246231375
-x_max = 19.6195
-y_max = 27.3171
-z_max = 48.0537
+    def l2_loss(self, prediction):
+        return tf.nn.l2_loss(prediction)
 
+    def pi_loss(self, prediction):
+        mse = tf.keras.losses.MeanSquaredError()
+        if self.system == 'KS':
+            solver_time_step = ks_time_step_batch(prediction*self.args.standard_norm,
+                                                  d=self.args.d, M=self.args.M, h=self.args.h)
+            loss_pi = mse(prediction[:, 1:, :]*self.args.standard_norm, solver_time_step[:, :-1, :])
+        if self.system=='l96':
+            # missing_idx = list(set(range(0, self.args.sys_dim)).difference(self.idx_lst))
+            # loss_pi = mse(tf.gather(backward_diff(prediction*self.args.standard_norm), missing_idx, axis=2),
+            #               tf.gather(l96_batch(prediction*self.args.standard_norm, p=8)[:, :-1, :], missing_idx, axis=2))
+            
+            loss_pi = mse(prediction[:, 1:, :]*self.args.standard_norm, RK4_step_l96(prediction*self.args.standard_norm, delta_t=self.args.delta_t)[:, :-1, :])
+        else:
+            print(f"{self.system} not defined yet")
+            loss_pi=0.0
+        return loss_pi
 
+    @tf.function
+    def loss_oloop(y_true, y_pred, washout=0):
+        mse = tf.keras.losses.MeanSquaredError()
+        loss = mse(y_true[:, washout:, :], y_pred[:, washout:, :])
+        return loss
 
-@tf.function
-def loss_oloop(y_true, y_pred, washout=0):
-    mse = tf.keras.losses.MeanSquaredError()
-    loss = mse(y_true[:, washout:, :], y_pred[:, washout:, :])
-    return loss
-
-
-@tf.function
-def loss_oloop_l2_reg(y_true, y_pred, washout=0, reg_weight=0.001):
-    mse = tf.keras.losses.MeanSquaredError()
-    loss = mse(y_true[washout:, :], y_pred[washout:, :]) + reg_weight * tf.nn.l2_loss(
-        y_pred[washout:, :]
-    )
-    return loss
-
-
-
-def norm_backward_diff(y_pred, last_x_batch_train, delta_t=0.01, norm=True):
-    bd = (y_pred - last_x_batch_train)/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
-    if norm == False:
-        return bd[:, 0], bd[:, 1], bd[:, 2]
-    else:
-        return bd[:, 0]/y_max, bd[:, 1]/z_max/x_max, bd[:, 2]/x_max/y_max
-
-
-def norm_backward_diff_many(y_pred, delta_t=0.01, norm=True):
-    bd = (y_pred[:, 1:, :] - y_pred[:, :-1, :])/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
-    if norm == False:
-        return bd[:, :, 0], bd[:, :, 1], bd[:, :, 2]
-    else:
-        return bd[:, :, 0]/y_max, bd[:, :, 1]/z_max/x_max, bd[:, :, 2]/x_max/y_max
-
-
-
-def norm_pi_loss(y_pred, x_batch_train, washout=0, total_points=10000, norm=True):
-    """_summary_
-
-    Args:
-        y_pred (Tensor): network prediction
-        x_batch_train: one batch of training windows
-        washout (int, optional): to attenuate initialisation. Defaults to 0.
-    Returns:
-        _type_: _description_
-    """
-    # max_from_norm(total_points=total_points)
-    mse = tf.keras.losses.MeanSquaredError()
-    x_t, y_t, z_t = norm_lorenz(y_pred)  # generate rhs of Lorenz equations
-    # compute backward diff for all the predictions in a batch
-    x_fd, y_fd, z_fd = norm_backward_diff(y_pred, x_batch_train[:, -1, :], norm=norm)
-    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
-    return pi_loss
-
-
-def norm_pi_loss_two_step(y_pred_1, y_pred_2, washout=0, total_points=10000, norm=True):
-    """_summary_
-
-    Args:
-        y_pred (Tensor): network prediction
-        x_batch_train: one batch of training windows
-        washout (int, optional): to attenuate initialisation. Defaults to 0.
-    Returns:
-        _type_: _description_
-    """
-    # max_from_norm(total_points=total_points)
-    mse = tf.keras.losses.MeanSquaredError()
-    x_t, y_t, z_t = norm_lorenz(y_pred_1, norm=norm)  # generate rhs of Lorenz equations
-    # compute backward diff for all the predictions in a batch
-    x_fd, y_fd, z_fd = norm_backward_diff(y_pred_2, y_pred_1, norm=norm)
-    pi_loss = mse(x_t, x_fd) + mse(y_t, y_fd) + mse(z_t, z_fd)  # compute mse for each dimension
-    return pi_loss/3
-
-
-def norm_loss_pi_many(y_pred, washout=0, total_points=10000, norm=True):
-    """_summary_
-
-    Args:
-        y_pred (Tensor): network prediction
-        x_batch_train: one batch of training windows
-        washout (int, optional): to attenuate initialisation. Defaults to 0.
-    Returns:
-        _type_: _description_
-    """
-    # max_from_norm(total_points=total_points)
-    mse = tf.keras.losses.MeanSquaredError()
-    x_t, y_t, z_t = norm_lorenz_batch(y_pred, norm=norm)  # generate rhs of Lorenz equations
-    # compute backward diff for all the predictions in a batch
-    x_fd, y_fd, z_fd = norm_backward_diff_many(y_pred, norm=norm)
-    pi_loss = mse(x_t[:, :-1], x_fd) + mse(y_t[:, :-1], y_fd) + mse(z_t[:, :-1], z_fd)  # compute mse for each dimension
-    return pi_loss/3
-
-def loss_pi_many(y_pred, washout=0, total_points=10000, norm=False):
-    """_summary_
-
-    Args:
-        y_pred (Tensor): network prediction
-        x_batch_train: one batch of training windows
-        washout (int, optional): to attenuate initialisation. Defaults to 0.
-    Returns:
-        _type_: _description_
-    """
-    # max_from_norm(total_points=total_points)
-    mse = tf.keras.losses.MeanSquaredError()
-    x_t, y_t, z_t = norm_lorenz_batch(y_pred, norm=norm)  # generate rhs of Lorenz equations
-    # compute backward diff for all the predictions in a batch
-    x_fd, y_fd, z_fd = norm_backward_diff_many(y_pred, norm=False)
-    pi_loss = mse(x_t[:, :-1], x_fd) + mse(y_t[:, :-1], y_fd) + mse(z_t[:, :-1], z_fd)  # compute mse for each dimension
-    return pi_loss/3
 

@@ -49,3 +49,11 @@ def l96_batch(x, p=8):
 def backward_diff(y_pred, delta_t=0.01):
     bd = (y_pred[:, 1:, :] - y_pred[:, :-1, :])/delta_t  # y_pred (batch, dim), x_batch (batch, window, dim)
     return bd
+
+def RK4_step_l96(u, delta_t):
+    K1 = l96_batch(u)
+    K2 = l96_batch(u+ delta_t*K1/2.0)
+    K3 = l96_batch(u + delta_t*K2/2.0)
+    K4 = l96_batch(u + delta_t*K3)
+    u = u + delta_t * (K1/2.0 + K2 + K3 + K4/2.0) / 3.0
+    return u

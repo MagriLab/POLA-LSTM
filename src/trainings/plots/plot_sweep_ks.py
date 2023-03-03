@@ -29,11 +29,11 @@ mydf = np.genfromtxt(
     '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/L20_pi/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv',
     delimiter=",").astype(
     np.float64)
-
+norm = 3.58
 sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/ks/128dof')
 
 
-for folder_name in ['pi-64']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
+for folder_name in ['pi-032', 'pi-043', 'pi-021', 'pi-016', 'pi-013']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
@@ -47,8 +47,8 @@ for folder_name in ['pi-64']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
         window_size = model_dict['DATA']['WINDOW_SIZE']
         n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
         epochs = max([int(i) for i in next(os.walk(model_path / 'model'))[1]])
-        if len(list(filter(lambda x: x == 'images', next(os.walk(model_path))[1])))==1:
-            continue
+        # if len(list(filter(lambda x: x == 'images', next(os.walk(model_path))[1])))==1:
+        #     continue
         print(f'Epochs {epochs}')
         dt = model_dict['DATA']['DELTA T']  # time step
         batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
@@ -85,6 +85,9 @@ for folder_name in ['pi-64']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
         N = 1000*N_lyap
         lyapunov_time = np.arange(0, N/N_lyap, dt/t_lyap)
         pred = prediction(model, df_test, window_size, dim, n_random_idx, N=N)
+        pred = pred *norm
+        df_train = df_train*norm
+        df_test = df_test*norm
         # /short Pred
         N_plot = 5*N_lyap
         fig, axes = plt.subplots(nrows=1, ncols=2)
@@ -138,7 +141,7 @@ for folder_name in ['pi-64']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
         vv = fft(df_test[:, :N_fft].T).T
         plt.plot(np.sum(np.real(np.multiply(vv.conj(), vv))[:max_k], axis=1), '.', label='Reference - 128 dof')
         vv_idx = fft(df_test[idx_lst, :N_fft].T).T
-        plt.plot(np.sum(np.real(np.multiply(vv_idx.conj(), vv_idx))[:max_k], axis=1), '.', label='Reference - 64 dof')
+        plt.plot(np.sum(np.real(np.multiply(vv_idx.conj(), vv_idx))[:max_k], axis=1), '.', label=f'Reference - {n_random_idx} dof')
         vv_pred = fft(pred[:N_fft, :]).T
         plt.plot(np.sum(np.real(np.multiply(vv_pred.conj(), vv_pred))[:max_k], axis=1), '.', label='LSTM')
         # plt.loglog()
@@ -155,22 +158,24 @@ for folder_name in ['pi-64']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
         N_plot = min(df_test.shape[1], pred.shape[0], 25*N_lyap)
         time_axis = time_test[:N_plot]
         plt.title('Kinetic Energy on Test Data')
-        plt.plot(time_axis, np.sum(pred[:N_plot, :]**2, axis=1), label='LSTM')
-        plt.plot(time_axis, np.sum(df_test[:, :N_plot].T**2, axis=1), label='Reference - 128 dof')
-        plt.plot(time_axis, np.sum(df_test[idx_lst, :N_plot].T**2, axis=1), label='Reference - 64 dof')
-        plt.ylabel('$\sum_i^N u_i^2(t)$')
+        plt.plot(time_axis, 0.5*np.sum(pred[:N_plot, :]**2, axis=1)/pred.shape[1], label='LSTM')
+        plt.plot(time_axis, 0.5*np.sum(df_test[:, :N_plot].T**2, axis=1)/df_test.shape[0], label='Reference - 128 dof')
+        plt.plot(time_axis, 0.5*np.sum(df_test[idx_lst, :N_plot].T**2, axis=1)/n_random_idx, label=f'Reference - {n_random_idx} dof')
+        plt.ylabel(r'$ \frac{1}{N} \sum_1^N u_i^2(t)$')
         plt.xlabel('T')
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         sub_axes = plt.axes([1.0, 0.75, .5, .5]) 
         N_plot = 1000
         # plot the zoomed portion
         time_axis = time_test[2000:2000+N_plot]
-        sub_axes.plot(time_axis, np.sum(pred[2000:2000+N_plot, :]**2, axis=1)) 
-        sub_axes.plot(time_axis, np.sum(df_test[:, 2000:2000+N_plot].T**2, axis=1))
-        sub_axes.plot(time_axis, np.sum(df_test[idx_lst, 2000:2000+N_plot].T**2, axis=1))
-        sub_axes.set_ylabel('$\sum_i^N u_i^2(t)$')
+        sub_axes.plot(time_axis, 0.5*np.sum(pred[2000:2000+N_plot, :]**2/pred.shape[1], axis=1)) 
+        sub_axes.plot(time_axis, 0.5*np.sum(df_test[:, 2000:2000+N_plot].T**2, axis=1)/df_test.shape[0])
+        sub_axes.plot(time_axis, 0.5*np.sum(df_test[idx_lst, 2000:2000+N_plot].T**2, axis=1)/n_random_idx)
+        sub_axes.set_ylabel(r'$ \frac{1}{N} \sum_1^N u_i^2(t)$')
         sub_axes.set_xlabel('T')
         plt.savefig(f'{img_filepath}/kin_energy_test.png', dpi=100, facecolor="w", bbox_inches="tight")
+
+
 
         plt.close()
         # nrmse
