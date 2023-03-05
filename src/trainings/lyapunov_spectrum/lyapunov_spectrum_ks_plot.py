@@ -184,10 +184,10 @@ mydf = np.genfromtxt(
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('../ks/128dof') 
+sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/128dof') 
 
 
-for folder_name in ['pi-032', 'pi-043', 'pi-021', 'pi-016', 'pi-013']:
+for folder_name in ['pi-013', 'pi-016']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
@@ -242,7 +242,7 @@ for folder_name in ['pi-032', 'pi-043', 'pi-021', 'pi-016', 'pi-013']:
                 
             plt.plot(fullspace, ref_lyap[ :n_lyap],'k-s', markersize=8,label='target')
             plt.plot(fullspace, lyapunov_exp[-1, :n_lyap],'r-o', markersize=6,label='LSTM')
-            plt.plot(fullspace, np.append(np.append(lyapunov_exp[-1, :8], [0, 0]), lyapunov_exp[-1, 8:n_lyap-2]),'b-^', markersize=6,label='LSTM - 2 shifted like Vlachas')
+            # plt.plot(fullspace, np.append(np.append(lyapunov_exp[-1, :8], [0, 0]), lyapunov_exp[-1, 8:n_lyap-2]),'b-^', markersize=6,label='LSTM - 2 shifted like Vlachas')
 
             plt.legend()
             plt.savefig(img_filepath/f'{pi_weighing}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")

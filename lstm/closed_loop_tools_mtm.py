@@ -11,17 +11,6 @@ def compute_lyapunov_time_arr(time_vector, c_lyapunov=0.90566, window_size=50):
     return lyapunov_time
 
 
-def create_df_3d(series, window_size, batch_size, shuffle_buffer):
-    dataset = tf.data.Dataset.from_tensor_slices(series)
-    dataset = dataset.window(size=window_size + 1, shift=1, drop_remainder=True)
-    dataset = dataset.flat_map(lambda window: window.batch(window_size + 1))
-    dataset = dataset.shuffle(shuffle_buffer).map(
-        lambda window: (window[:-1], window[1:])
-    )
-    dataset = dataset.padded_batch(batch_size, padded_shapes=([None, 3], [None, 3]))
-    return dataset
-
-
 def append_label_to_window(window, label):
     corr_label = einops.rearrange(label[:, -1, :], "i j -> i 1 j")
     return tf.concat((window, corr_label), axis=1)

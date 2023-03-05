@@ -184,20 +184,19 @@ mydf = np.genfromtxt(
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('../ks/128dof') 
+sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/128dof') 
 
 
-for folder_name in ['pi-021']:
+for folder_name in ['pi-013', 'pi-016']:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
-    sweep_models = ['volcanic-sweep-10']
     for model_name in sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name/ model_name 
         model_dict = load_config_to_dict(model_path)
 
         dim = 128 # df_train.shape[0]
-        n_random_idx = int(folder_name[-3:])
+        n_random_idx = int(folder_name[-2:])
         # dim = n_random_idx
         window_size = model_dict['DATA']['WINDOW_SIZE']
         n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']

@@ -30,10 +30,10 @@ mydf = np.genfromtxt(
     delimiter=",").astype(
     np.float64)
 norm = 3.58
-sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/ks/128dof')
+sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/yael_ks_eval/128dof')
 
 
-for folder_name in ['pi-032', 'pi-043', 'pi-021', 'pi-016', 'pi-013']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
+for folder_name in ['pi-32', 'pi-26', 'pi-21', 'pi-18', 'pi-16']:# ,'D10-10' next(os.walk(sweep_path))[1]:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
