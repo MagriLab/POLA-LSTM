@@ -16,11 +16,6 @@ tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 ref_lyap=np.loadtxt('../Yael_CSV/KS/le_128_64.txt')
-mydf = np.genfromtxt(
-    '../Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv',
-    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
-    delimiter=",").astype(
-    np.float64)
 
 sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/128dof') 
 

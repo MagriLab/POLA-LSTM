@@ -5,7 +5,6 @@ from pathlib import Path
 import time
 import warnings
 import random
-import einops
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -24,10 +23,7 @@ if gpus:
       print(e)
 
 sys.path.append('../../../')
-from lstm.closed_loop_tools_mtm import (compute_lyapunov_time_arr,
-                                        create_test_window,
-                                        prediction_closed_loop)
-from lstm.lstm_model import load_model
+from lstm.closed_loop_tools_mtm import create_test_window
 from lstm.lstm import LSTMRunner
 from lstm.utils.config import load_config_to_argparse
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
@@ -35,7 +31,7 @@ from lstm.preprocessing.data_processing import (df_train_valid_test_split,
 from lstm.utils.qr_decomp import qr_factorization
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.utils.create_paths import make_folder_filepath
-from lstm.utils.config import load_config_to_dict
+from lstm.utils.config import load_config_to_argparse
 from lstm.postprocessing.lyapunov_tools import lstm_step_comb, step_and_jac, step_and_jac_analytical
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')

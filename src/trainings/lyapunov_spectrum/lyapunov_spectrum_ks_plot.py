@@ -2,13 +2,9 @@
 import sys
 import os
 from pathlib import Path
-import time
 import warnings
-import random
-import einops
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import tensorflow as tf
 
 gpus = tf.config.list_physical_devices('GPU')
@@ -24,26 +20,14 @@ if gpus:
       print(e)
 
 sys.path.append('../../../')
-from lstm.closed_loop_tools_mtm import (compute_lyapunov_time_arr,
-                                        create_test_window,
-                                        prediction_closed_loop)
-from lstm.lstm_model import load_model
-from lstm.preprocessing.data_processing import (df_train_valid_test_split,
-                                                train_valid_test_split, create_df_nd_random_md_mtm_idx)
-from lstm.utils.qr_decomp import qr_factorization
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.utils.create_paths import make_folder_filepath
-from lstm.utils.config import load_config_to_dict
+from lstm.utils.config import load_config_to_argparse
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 ref_lyap=np.loadtxt('../Yael_CSV/KS/le_128_64.txt')
-mydf = np.genfromtxt(
-    '../Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv',
-    # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
-    delimiter=",").astype(
-    np.float64)
 
 sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/models/ks/128dof') 
 
@@ -54,34 +38,24 @@ for folder_name in ['pi-013', 'pi-016']:
     for model_name in sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name/ model_name 
-        model_dict = load_config_to_dict(model_path)
+        args = load_config_to_argparse(model_path)
 
-        dim = 128 # df_train.shape[0]
+        dim = 128
         n_random_idx = int(folder_name[-3:])
-        # dim = n_random_idx
-        window_size = model_dict['DATA']['WINDOW_SIZE']
-        n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-        pi_weighing = model_dict['ML_CONSTRAINTS']['PI WEIGHT']
+        
         epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
         print(f'Epochs {epochs}')
-        dt = model_dict['DATA']['DELTA T']  # time step
         img_filepath = make_folder_filepath(model_path, 'images')
-        model = load_model(model_path, epochs, model_dict, dim=dim)
-        upsampling = model_dict['DATA']['UPSAMPLING']
         t_lyap = 0.08**(-1)
-        N_lyap = int(t_lyap / (dt*upsampling))
+        N_lyap = int(t_lyap / (args.delta_t*args.upsampling))
 
-        print('--- model successfully loaded---')
-
-        # Set up parameters for LE computation
-        start_time = time.time()
         norm_time = 1
-        N_lyap = int(t_lyap/(upsampling*dt))
+        N_lyap = int(t_lyap/(args.upsampling*args.delta_t))
         N = 500*N_lyap
-        Ntransient = max(int(N/100), window_size+2)
+        Ntransient = max(int(N/100), args.window_size+2)
         N_test = N - Ntransient
         print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
-        Ttot = np.arange(int(N_test/norm_time)) * (upsampling*dt) * norm_time
+        Ttot = np.arange(int(N_test/norm_time)) * (args.upsampling*args.delta_t) * norm_time
         N_test_norm = int(N_test/norm_time)
         print(f'N_test_norm: {N_test_norm}')
         le_dim = 64
@@ -103,9 +77,9 @@ for folder_name in ['pi-013', 'pi-016']:
             # plt.plot(fullspace, np.append(np.append(lyapunov_exp[-1, :8], [0, 0]), lyapunov_exp[-1, 8:n_lyap-2]),'b-^', markersize=6,label='LSTM - 2 shifted like Vlachas')
 
             plt.legend()
-            plt.savefig(img_filepath/f'{pi_weighing}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
-            plt.savefig(img_filepath_folder/f'{pi_weighing}_{model_name}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+            plt.savefig(img_filepath/f'{args.pi_weighing}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
+            plt.savefig(img_filepath_folder/f'{args.pi_weighing}_{model_name}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
             plt.close()
             print(f'{model_name} : Lyapunov exponents: {lyapunov_exp[-1] } ')
         # else:
-            # os.remove(img_filepath_folder/f'{pi_weighing}_{model_name}_scatterplot_lyapunox_exp.png')
+            # os.remove(img_filepath_folder/f'{args.pi_weighing}_{model_name}_scatterplot_lyapunox_exp.png')

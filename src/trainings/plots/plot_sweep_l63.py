@@ -16,7 +16,6 @@ from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.postprocessing.nrmse import vpt, nrmse_array
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
                                                 train_valid_test_split, create_df_nd_random_md_mtm_idx)
-from lstm.lstm_model import load_model
 from lstm.lstm import LSTMRunner
 from lstm.closed_loop_tools_mtm import (prediction)
 warnings.simplefilter(action="ignore", category=FutureWarning)
