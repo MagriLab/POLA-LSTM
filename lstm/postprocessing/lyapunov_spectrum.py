@@ -18,7 +18,7 @@ tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 
-def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict, argparse.Namespace],
+def compute_lyapunov_exp(test_window: np.ndarray, model, args: Union[dict, argparse.Namespace],
                          N: int, dim: int, le_dim: Optional[int] = None, idx_lst: Optional[List[int]] = None,
                          save_path: Optional[Path] = None) -> np.ndarray:
     """Compute the Lyapunov exponents for a given model.
@@ -26,7 +26,7 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
     Args:
         test_window (np.ndarray): starting point of computation
         model (Model): The model to use for the computation.
-        model_dict (Dict[str, Any]): Dictionary of model parameters.
+        args (Dict[str, Any]): Dictionary of model parameters.
         N (int): Number of samples to use for the computation.
         dim (int): Dimension of the data.
         le_dim (int): Dimension of the Lyapunov exponent.
@@ -40,19 +40,19 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
         le_dim = dim
     if idx_lst == None:
         idx_lst = np.arange(0, dim)
-    if type(model_dict) == dict:
+    if type(args) == dict:
         print('Identified Dictionary')
-        n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
-        dt = model_dict['DATA']['DELTA T']  # time step
-        upsampling = model_dict['DATA']['UPSAMPLING']
-        window_size = model_dict['DATA']['WINDOW_SIZE']
-    elif type(model_dict) == argparse.Namespace:
-        model_dict = vars(model_dict)
+        n_cell = args['ML_CONSTRAINTS']['N_CELLS']
+        dt = args['DATA']['DELTA T']  # time step
+        upsampling = args['DATA']['UPSAMPLING']
+        window_size = args['DATA']['WINDOW_SIZE']
+    elif type(args) == argparse.Namespace:
+        # args = vars(args)
         print('Identified argparse')
-        n_cell = model_dict['n_cells']
-        dt = model_dict['delta_t']  # time step
-        upsampling = model_dict['upsampling']
-        window_size = model_dict['window_size']
+        n_cell = args.n_cells
+        dt = args.delta_t
+        upsampling = args.upsampling
+        window_size = args.window_size
     if le_dim > n_cell:
         le_dim=n_cell
     norm_time = 1
@@ -77,26 +77,23 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
     c = tf.Variable(model.layers[0].get_initial_state(test_window)[1], trainable=False)
     pred = np.zeros(shape=(N, dim))
     pred[0, :] = u_t
-
     # prepare h,c and c from first window
     for i in range(1, window_size+1):
         u_t = test_window[:, i-1, :]
         u_t_eval = tf.gather(u_t, idx_lst, axis=1)
-        u_t, h, c = lstm_step_comb(u_t_eval, h, c, model, window_size, i, idx_lst, dim)
+        u_t, h, c = lstm_step_comb(u_t_eval, h, c, model, args, i, idx_lst, dim)
         pred[i, :] = u_t
-
     i = window_size
     u_t_eval = tf.gather(u_t, idx_lst, axis=1)
-    jacobian, u_t, h, c = step_and_jac(u_t_eval, h, c, model, window_size, i, idx_lst, dim)
+    jacobian, u_t, h, c = step_and_jac(u_t_eval, h, c, model, args, i, idx_lst, dim)
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
     q, r = qr_factorization(delta)
     delta = q[:, :le_dim]
-
     # compute delta on transient
     for i in range(window_size+1, Ntransient):
         u_t_eval = tf.gather(u_t, idx_lst, axis=1)
-        jacobian, u_t, h, c = step_and_jac_analytical(u_t_eval, h, c, model, window_size, i, idx_lst, dim)
+        jacobian, u_t, h, c = step_and_jac_analytical(u_t_eval, h, c, model, args, i, idx_lst, dim)
         pred[i, :] = u_t
         delta = np.matmul(jacobian, delta)
 
@@ -109,7 +106,7 @@ def compute_lyapunov_exp(test_window: np.ndarray, model, model_dict: Union[dict,
     start_time = time.time()
     for i in range(Ntransient, N):
         u_t_eval = tf.gather(u_t, idx_lst, axis=1)
-        jacobian, u_t, h, c = step_and_jac_analytical(u_t_eval, h, c, model, window_size, i, idx_lst, dim)
+        jacobian, u_t, h, c = step_and_jac_analytical(u_t_eval, h, c, model, args, i, idx_lst, dim)
         indx = i-Ntransient
         pred[i, :] = u_t
         delta = np.matmul(jacobian, delta)
