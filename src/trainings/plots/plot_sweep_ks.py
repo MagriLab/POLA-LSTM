@@ -8,22 +8,19 @@ import warnings
 import random
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
 import tensorflow as tf
 sys.path.append('../../../')
-from lstm.utils.config import load_config_to_dict
+from lstm.utils.config import load_config_to_argparse
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.supress_tf_warning import tensorflow_shutup
-from lstm.postprocessing.nrmse import vpt, nrmse_array
+from lstm.postprocessing.nrmse import nrmse_array
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
                                                 train_valid_test_split, create_df_nd_random_md_mtm_idx)
-from lstm.lstm_model import load_model
+from lstm.lstm import LSTMRunner
 from lstm.closed_loop_tools_mtm import (prediction)
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
-# mpl.rc('text', usetex = False)
-# mpl.rc('font', family = 'serif')
 
 mydf = np.genfromtxt(
     '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/diff_dyn_sys/KS_flow/CSV/L20_pi/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv',
@@ -39,60 +36,54 @@ for folder_name in ['pi-32', 'pi-26', 'pi-21', 'pi-18', 'pi-16']:# ,'D10-10' nex
     for model_name in sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name / model_name
-        model_dict = load_config_to_dict(model_path)
-
+        args = load_config_to_argparse(model_path)
         dim = 128  # df_train.shape[0]
+        args.sys_dim = dim
+        args.standard_norm = 3.58
         n_random_idx = int(folder_name[-2:])
-        # dim = n_random_idx
-        window_size = model_dict['DATA']['WINDOW_SIZE']
-        n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
         epochs = max([int(i) for i in next(os.walk(model_path / 'model'))[1]])
-        # if len(list(filter(lambda x: x == 'images', next(os.walk(model_path))[1])))==1:
-        #     continue
+
         print(f'Epochs {epochs}')
-        dt = model_dict['DATA']['DELTA T']  # time step
-        batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
+        
         img_filepath = make_folder_filepath(model_path, 'images')
-        model = load_model(model_path, epochs, model_dict, dim=dim)
-        upsampling = model_dict['DATA']['UPSAMPLING']
-        train_ratio = model_dict['DATA']['TRAINING RATIO']*(14400/99000)
-        valid_ratio = model_dict['DATA']['VALID RATIO']*(14400/99000)
+        train_ratio = args.train_ratio*(14400/99000)
+        valid_ratio = args.valid_ratio*(14400/99000)
         domain_length = 20*np.pi
         random.seed(0)
-        # idx_lst = random.sample(range(1, 10+1), n_random_idx)
-        # idx_lst.sort()
-        # print(idx_lst)
         df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: upsampling],
+            mydf[1:, :: args.upsampling],
             train_ratio=train_ratio, valid_ratio=valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(
-            mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
+            mydf[0, ::args.upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
         # Compare this prediction with the LE prediction
         t_lyap = 0.08**(-1)
-        N_lyap = int(t_lyap / (dt*upsampling))
+        N_lyap = int(t_lyap / (args.delta_t*args.upsampling))
         print(df_train.shape)
         idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
             df_train.transpose(),
-            window_size, batch_size, df_train.shape[0],
+            args.window_size, args.batch_size, df_train.shape[0],
             n_random_idx=n_random_idx)
+        args.idx_lst=idx_lst
         print(type(train_dataset))
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
-        batch_pred = model(batch)
-
+        runner = LSTMRunner(args, 'l96', idx_lst)
+        runner.load_model(model_path, epochs)
+        model = runner.model
+        model(batch)
         print('--- model successfully loaded---')
 
         N = 1000*N_lyap
-        lyapunov_time = np.arange(0, N/N_lyap, dt/t_lyap)
-        pred = prediction(model, df_test, window_size, dim, n_random_idx, N=N)
+        lyapunov_time = np.arange(0, N/N_lyap, args.delta_t/t_lyap)
+        pred = prediction(model, df_test, args.window_size, dim, n_random_idx, N=N)
         pred = pred *norm
         df_train = df_train*norm
         df_test = df_test*norm
         # /short Pred
         N_plot = 5*N_lyap
         fig, axes = plt.subplots(nrows=1, ncols=2)
-        data1 = pred[window_size:N_plot, :].T
-        data2 = df_train[:, window_size:N_plot]
+        data1 = pred[args.window_size:N_plot, :].T
+        data2 = df_train[:, args.window_size:N_plot]
 
         # find minimum of minima & maximum of maxima
         minmin = -1
@@ -113,9 +104,9 @@ for folder_name in ['pi-32', 'pi-26', 'pi-21', 'pi-18', 'pi-16']:# ,'D10-10' nex
         plt.close()
 
         fig, axes = plt.subplots(nrows=1, ncols=2)
-        N_plot=200*window_size #pred.shape[0] #50*window_size
-        data1 = pred[window_size:N_plot, :]
-        data2 = df_test[:, window_size:N_plot].T
+        N_plot=200*args.window_size #pred.shape[0] #50*args.window_size
+        data1 = pred[args.window_size:N_plot, :]
+        data2 = df_test[:, args.window_size:N_plot].T
         fig.suptitle('u(x)')
         # find minimum of minima & maximum of maxima
         minmin = -1
@@ -180,8 +171,8 @@ for folder_name in ['pi-32', 'pi-26', 'pi-21', 'pi-18', 'pi-16']:# ,'D10-10' nex
         plt.close()
         # nrmse
         model_nrmse_time = nrmse_array(
-            pred[window_size: window_size + N_plot, :],
-            df_test[:, window_size: window_size + N_plot])
+            pred[args.window_size: args.window_size + N_plot, :],
+            df_test[:, args.window_size: args.window_size + N_plot])
         N_plot = min(5*N_lyap, len(lyapunov_time), len(model_nrmse_time))
         plt.plot(lyapunov_time[:N_plot], model_nrmse_time[:N_plot])
         plt.hlines(y=0.4, xmin=lyapunov_time[0], xmax=lyapunov_time[N_plot])

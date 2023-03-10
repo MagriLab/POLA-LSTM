@@ -83,7 +83,6 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
         
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
-        batch_pred = model(batch)
         runner = LSTMRunner(args, 'l96', idx_lst)
         runner.load_model(model_path, epochs)
         model = runner.model
