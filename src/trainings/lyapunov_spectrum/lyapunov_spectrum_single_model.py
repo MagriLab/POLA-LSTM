@@ -32,6 +32,7 @@ from lstm.utils.qr_decomp import qr_factorization
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.postprocessing.lyapunov_tools import lstm_step_comb, step_and_jac, step_and_jac_analytical
+from lstm.postprocessing import clv_func_clean
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
@@ -40,11 +41,9 @@ tensorflow_shutup()
 ref_lyap=np.loadtxt('../Yael_CSV/L96/dim_20_lyapunov_exponents.txt')[-1, :]
 
 mydf = np.genfromtxt(
-    '/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
-    delimiter=",").astype(
-    np.float64)
+    '../Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',delimiter=",").astype(np.float64)
 
-model_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/L96/D20/D-14/wandering-sweep-23')
+model_path = Path('../L96/D-14/wandering-sweep-23')
 args = load_config_to_argparse(model_path)
 dim = 20 # df_train.shape[0]
 args.sys_dim = dim
@@ -95,6 +94,17 @@ LE = np.zeros((N_test_norm, le_dim))
 # q and r matrix recorded in time
 qq_t = np.zeros((args.n_cells+args.n_cells, le_dim, N_test_norm))
 rr_t = np.zeros((le_dim, le_dim, N_test_norm))
+# Lyapunov Exponents timeseries
+LE   = np.zeros((N_test_norm, le_dim))
+# Instantaneous Lyapunov Exponents timeseries
+IBLE   = np.zeros((N_test_norm,le_dim))
+# Q matrix recorded in time
+QQ_t = np.zeros((args.n_cells+args.n_cells, le_dim, N_test_norm))
+# R matrix recorded in time
+RR_t =  np.zeros((le_dim, le_dim, N_test_norm))
+
+
+
 np.random.seed(1)
 delta = scipy.linalg.orth(np.random.rand(args.n_cells+args.n_cells, le_dim))
 q, r = qr_factorization(delta)
@@ -122,7 +132,7 @@ u_t_eval = tf.gather(u_t, idx_lst, axis=1)
 jacobian, u_t, h, c = step_and_jac(u_t_eval, h, c, model, args, i, dim=dim)
 pred[i, :] = u_t
 delta = np.matmul(jacobian, delta)
-q, r = qr_factorization(delta)
+q, r = qr_factorization(delta) #q dimension 200, 20 r (20,20)
 delta = q[:, :le_dim]
 
 # compute delta on transient
@@ -138,26 +148,32 @@ for i in range(args.window_size+1, Ntransient):
 
 print('Finished on Transient')
 # compute lyapunov exponent based on qr decomposition
-
+indx=0
 for i in range(Ntransient, N):
     u_t_eval = tf.gather(u_t, idx_lst, axis=1)
     jacobian, u_t, h, c = step_and_jac_analytical(u_t_eval, h, c, model, args, i, dim=dim)
-    indx = i-Ntransient
+
     pred[i, :] = u_t
     delta = np.matmul(jacobian, delta)
     if i % norm_time == 0:
         q, r = qr_factorization(delta)
-        delta = q[:, :le_dim]
+        delta = q[:, :le_dim]            
+        qq_t[:,:,indx] = q
+        rr_t[:,:,indx] = r
 
-        rr_t[:, :, indx] = r
-        qq_t[:, :, indx] = q
-        LE[indx] = np.abs(np.diag(r[:le_dim, :le_dim]))
+        LE[indx]       = np.abs(np.diag(r))
+        for j in range(le_dim):
+            IBLE[indx, j] = np.dot(q[:,j].T, np.dot(jacobian,q[:,j]))
+        indx += 1
+
 
         if i % 10000 == 0:
             print(f'Inside closed loop i = {i}')
             if indx != 0:
                 lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (le_dim, 1)).T
                 print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
+
+thetas_clv, il, D = clv_func_clean.CLV_calculation(qq_t, rr_t, args.sys_dim, 2*args.n_cells, args.delta_t, [6, 1], fname=model_path/'clvs.h5', system='lorenz96')
 
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
