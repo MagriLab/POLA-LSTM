@@ -139,7 +139,7 @@ def CLV_calculation(QQ, RR, NLy, n_cells_x2, dt, subspace_LEs_indeces, fname=Non
         V[:,:,i]                = np.dot(np.real(QQ[:,:,i]), C[:,:,i])
 
     # FTCLE computations
-    for j in 1+np.arange(s, e): #time loop
+    for j in np.arange(D.shape[1]): #time loop
         il[:,j] = -(1./dt)*np.log(D[:,j])
         
 
