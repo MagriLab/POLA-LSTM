@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import tensorflow as tf
-
+import h5py
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
         # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
@@ -33,23 +33,26 @@ from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.config import load_config_to_argparse
 from lstm.postprocessing.lyapunov_tools import lstm_step_comb, step_and_jac, step_and_jac_analytical
+from lstm.postprocessing import clv_func_clean, clv_angle_plot
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 
-ref_lyap=np.loadtxt('../Yael_CSV/L96/dim_20_lyapunov_exponents.txt')[-1, :]
+ref_lyap=np.loadtxt('../Yael_CSV/L96/dim_10_lyapunov_exponents.txt')[-1, :]
 
 mydf = np.genfromtxt(
-    '/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
+    '/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_200000_0.01_stand13.33_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/L96/D20')
+ref_clv_hf = h5py.File(Path('../Yael_CSV/L96/ESN_target_CLV_dt_0.01_dim_10.h5'),'r+')
+FTCLE_targ = np.array(ref_clv_hf.get('thetas_clv')).T
+ref_clv_hf.close()
 
-
-for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
+sweep_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/L96/D10')
+for folder_name in list(filter(lambda x: x != 'images', next(os.walk(sweep_path))[1])):
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path/folder_name, 'images')
     print(sweep_models)
@@ -57,10 +60,10 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
         print(model_name)
         model_path = sweep_path / folder_name/ model_name 
         args = load_config_to_argparse(model_path)
-        dim = 20 # df_train.shape[0]
+        dim = 10 # df_train.shape[0]
         args.sys_dim = dim
         args.standard_norm = 13.33
-        n_random_idx = int(folder_name[-2:])
+        n_random_idx = int(folder_name[2:])
         epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
         
         img_filepath = make_folder_filepath(model_path, 'images')        
@@ -93,19 +96,30 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
         start_time = time.time()
         norm_time = 1
         N_lyap = int(t_lyap/(args.upsampling*args.delta_t))
-        N = 20*N_lyap
+        N = 200*N_lyap
         Ntransient = max(int(N/100), args.window_size+2)
         N_test = N - Ntransient
         print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
         Ttot = np.arange(int(N_test/norm_time)) * (args.upsampling*args.delta_t) * norm_time
         N_test_norm = int(N_test/norm_time)
         print(f'N_test_norm: {N_test_norm}')
-        le_dim = 20
+        le_dim = 10
         # Lyapunov Exponents timeseries
         LE = np.zeros((N_test_norm, le_dim))
         # q and r matrix recorded in time
         qq_t = np.zeros((args.n_cells+args.n_cells, le_dim, N_test_norm))
         rr_t = np.zeros((le_dim, le_dim, N_test_norm))
+        # Lyapunov Exponents timeseries
+        LE   = np.zeros((N_test_norm, le_dim))
+        # Instantaneous Lyapunov Exponents timeseries
+        IBLE   = np.zeros((N_test_norm,le_dim))
+        # Q matrix recorded in time
+        QQ_t = np.zeros((args.n_cells+args.n_cells, le_dim, N_test_norm))
+        # R matrix recorded in time
+        RR_t =  np.zeros((le_dim, le_dim, N_test_norm))
+
+
+
         np.random.seed(1)
         delta = scipy.linalg.orth(np.random.rand(args.n_cells+args.n_cells, le_dim))
         q, r = qr_factorization(delta)
@@ -133,7 +147,7 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
         jacobian, u_t, h, c = step_and_jac(u_t_eval, h, c, model, args, i, dim=dim)
         pred[i, :] = u_t
         delta = np.matmul(jacobian, delta)
-        q, r = qr_factorization(delta)
+        q, r = qr_factorization(delta) #q dimension 200, 20 r (20,20)
         delta = q[:, :le_dim]
 
         # compute delta on transient
@@ -149,20 +163,24 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
 
         print('Finished on Transient')
         # compute lyapunov exponent based on qr decomposition
-
+        indx=0
         for i in range(Ntransient, N):
             u_t_eval = tf.gather(u_t, idx_lst, axis=1)
             jacobian, u_t, h, c = step_and_jac_analytical(u_t_eval, h, c, model, args, i, dim=dim)
-            indx = i-Ntransient
+
             pred[i, :] = u_t
             delta = np.matmul(jacobian, delta)
             if i % norm_time == 0:
                 q, r = qr_factorization(delta)
-                delta = q[:, :le_dim]
+                delta = q[:, :le_dim]            
+                qq_t[:,:,indx] = q
+                rr_t[:,:,indx] = r
 
-                rr_t[:, :, indx] = r
-                qq_t[:, :, indx] = q
-                LE[indx] = np.abs(np.diag(r[:le_dim, :le_dim]))
+                LE[indx]       = np.abs(np.diag(r))
+                for j in range(le_dim):
+                    IBLE[indx, j] = np.dot(q[:,j].T, np.dot(jacobian,q[:,j]))
+                indx += 1
+
 
                 if i % 10000 == 0:
                     print(f'Inside closed loop i = {i}')
@@ -170,13 +188,15 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
                         lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (le_dim, 1)).T
                         print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
 
+        thetas_clv, il, D = clv_func_clean.CLV_calculation(qq_t, rr_t, args.sys_dim, 2*args.n_cells, args.delta_t, [6, 1], fname=model_path/f'{N}_clvs.h5', system='lorenz96')
+
         lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
         print(f'Reference exponents: {ref_lyap[:]}')
         np.savetxt(model_path/f'{epochs}_lyapunov_exp_{N_test}.txt', lyapunov_exp)
         n_lyap=le_dim
         fullspace = np.arange(1,n_lyap+1)
-        fs=20
+        fs=10
         ax = plt.figure().gca()
 
         # plt.title(r'KS, $26/160 \to 160$ dof')
@@ -194,3 +214,11 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:
         plt.savefig(img_filepath_folder/f'{args.pi_weighing}_{model_name}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
         plt.close()
         print(f'{model_name} : Lyapunov exponents: {lyapunov_exp[-1] } ')
+        # plot theta distribution
+
+
+        FTCLE_lstm = thetas_clv.T
+        N_max = min(FTCLE_lstm.shape[1], FTCLE_targ.shape[1])
+        FTCLE_lstm = FTCLE_lstm[:, :N_max]
+        FTCLE_targ = FTCLE_targ[:, :N_max]
+        clv_angle_plot.plot_clv_pdf(FTCLE_lstm, FTCLE_targ, img_filepath, system='lorenz96')

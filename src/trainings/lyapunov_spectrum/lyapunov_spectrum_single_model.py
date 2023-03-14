@@ -8,14 +8,15 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import h5py
 import tensorflow as tf
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
         # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[0], 'GPU')
-        tf.config.set_logical_device_configuration(gpus[0], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        tf.config.set_visible_devices(gpus[2], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[2], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
@@ -32,7 +33,7 @@ from lstm.utils.qr_decomp import qr_factorization
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.postprocessing.lyapunov_tools import lstm_step_comb, step_and_jac, step_and_jac_analytical
-from lstm.postprocessing import clv_func_clean
+from lstm.postprocessing import clv_func_clean, clv_angle_plot
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
@@ -43,12 +44,12 @@ ref_lyap=np.loadtxt('../Yael_CSV/L96/dim_20_lyapunov_exponents.txt')[-1, :]
 mydf = np.genfromtxt(
     '../Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',delimiter=",").astype(np.float64)
 
-model_path = Path('../L96/D-14/wandering-sweep-23')
+model_path = Path('../L96/D20/D-12/rare-sweep-10')
 args = load_config_to_argparse(model_path)
 dim = 20 # df_train.shape[0]
 args.sys_dim = dim
 args.standard_norm = 13.33
-n_random_idx = 14
+n_random_idx = 12
 epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
 
 img_filepath = make_folder_filepath(model_path, 'images')        
@@ -81,7 +82,7 @@ print(idx_lst)
 start_time = time.time()
 norm_time = 1
 N_lyap = int(t_lyap/(args.upsampling*args.delta_t))
-N = 20*N_lyap
+N = 500*N_lyap
 Ntransient = max(int(N/100), args.window_size+2)
 N_test = N - Ntransient
 print(f'N:{N}, Ntran: {Ntransient}, Ntest: {N_test}')
@@ -173,7 +174,8 @@ for i in range(Ntransient, N):
                 lyapunov_exp = np.cumsum(np.log(LE[1:indx]), axis=0) / np.tile(Ttot[1:indx], (le_dim, 1)).T
                 print(f'Lyapunov exponents: {lyapunov_exp[-1] } ')
 
-thetas_clv, il, D = clv_func_clean.CLV_calculation(qq_t, rr_t, args.sys_dim, 2*args.n_cells, args.delta_t, [6, 1], fname=model_path/'clvs.h5', system='lorenz96')
+print(f'Time Duration: {time.time()-start_time}')
+thetas_clv, il, D = clv_func_clean.CLV_calculation(qq_t, rr_t, args.sys_dim, 2*args.n_cells, args.delta_t, [6, 1], fname=model_path/f'{N}_clvs.h5', system='lorenz96')
 
 lyapunov_exp = np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
 
@@ -198,3 +200,12 @@ plt.legend()
 plt.savefig(img_filepath/f'{args.pi_weighing}_{N_test}_scatterplot_lyapunox_exp.png', dpi=100, facecolor="w", bbox_inches="tight")
 plt.close()
 
+# plot theta distribution
+f2 = h5py.File(Path('../Yael_CSV/L96/ESN_target_CLV_dt_0.01_dim_20.h5'),'r+')
+
+FTCLE_lstm = thetas_clv.T
+FTCLE_targ = np.array(f2.get('thetas_clv')).T
+N_max = min(FTCLE_lstm.shape[1], FTCLE_targ.shape[1])
+FTCLE_lstm = FTCLE_lstm[:, :N_max]
+FTCLE_targ = FTCLE_targ[:, :N_max]
+clv_angle_plot.plot_clv_pdf(FTCLE_lstm, FTCLE_targ, img_filepath, system='lorenz96')
