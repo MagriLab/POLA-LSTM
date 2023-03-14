@@ -11,87 +11,80 @@ import numpy as np
 from scipy import stats
 import tensorflow as tf
 sys.path.append('../../../')
-from lstm.utils.config import load_config_to_dict
+from lstm.utils.config import load_config_to_argparse
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.postprocessing.nrmse import vpt, nrmse_array
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
                                                 train_valid_test_split, create_df_nd_random_md_mtm_idx)
-from lstm.lstm_model import load_model
-from lstm.closed_loop_tools_mtm import (prediction)
+from lstm.lstm import LSTMRunner
+from lstm.closed_loop_tools_mtm import prediction
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
-mpl.rc('text', usetex = False)
-mpl.rc('font', family = 'serif')
 
 mydf = np.genfromtxt(
-    '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/l96_dim_10_euler_125500_0.01_stand13.33_trans.csv',
+    '../Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/l96')
+sweep_path = Path('../L96/D20-c200')
 
 
-for folder_name in ['D10_pi-9', 'D10_pi-8']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
+for folder_name in list(filter(lambda x: x != 'images', next(os.walk(sweep_path))[1])):
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name / model_name
-        model_dict = load_config_to_dict(model_path)
-
-        dim = 10  # df_train.shape[0]
-        n_random_idx = int(folder_name[-1])
-        # dim = n_random_idx
-        window_size = model_dict['DATA']['WINDOW_SIZE']
-        n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
+        
+        args = load_config_to_argparse(model_path)
+        dim = 20  # df_train.shape[0]
+        args.sys_dim = dim
+        args.standard_norm = 13.33
+        n_random_idx = int(folder_name[-2:])
         epochs = max([int(i) for i in next(os.walk(model_path / 'model'))[1]])
-        print(f'Epochs {epochs}')
-        dt = model_dict['DATA']['DELTA T']  # time step
-        batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
+        
         img_filepath = make_folder_filepath(model_path, 'images')
-        model = load_model(model_path, epochs, model_dict, dim=dim)
-        upsampling = model_dict['DATA']['UPSAMPLING']
-        train_ratio = model_dict['DATA']['TRAINING RATIO']*(42500/125500)
-        valid_ratio = model_dict['DATA']['VALID RATIO']*(42500/125500)
+        args.sys_dim = dim
+        train_ratio = args.train_ratio*(42500/200000)
+        valid_ratio = args.valid_ratio*(42500/200000)
         random.seed(0)
-        # idx_lst = random.sample(range(1, 10+1), n_random_idx)
-        # idx_lst.sort()
-        # print(idx_lst)
         df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: upsampling],
+            mydf[1:, ::args.upsampling],
             train_ratio=train_ratio, valid_ratio=valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(
-            mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
+            mydf[0, ::args.upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
         # Compare this prediction with the LE prediction
         t_lyap = 1.55**(-1)
-        N_lyap = int(t_lyap / (dt*upsampling))
+        N_lyap = int(t_lyap / (args.delta_t*args.upsampling))
         print(df_train.shape)
         idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
             df_train.transpose(),
-            window_size, batch_size, df_train.shape[0],
+            args.window_size, args.batch_size, df_train.shape[0],
             n_random_idx=n_random_idx)
-        print(type(train_dataset))
+        args.idx_lst=idx_lst
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
-        batch_pred = model(batch)
-
+        runner = LSTMRunner(args, 'l96', idx_lst)
+        runner.load_model(model_path, epochs)
+        model = runner.model
+        model(batch)
         print('--- model successfully loaded---')
 
         N = 1000*N_lyap
-        pred = prediction(model, df_test, window_size, dim, n_random_idx, N=N)
+        pred = prediction(model, df_test, args.window_size, dim, n_random_idx, N=N)
         # /short Pred
         N_plot = 5*N_lyap
-        lyapunov_time = np.arange(0, N/N_lyap, dt*upsampling/t_lyap)
-        pred_horizon = lyapunov_time[vpt(pred[window_size:, :], df_test[:, window_size:], 0.4)]
+        lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
+        pred_horizon = lyapunov_time[vpt(pred[args.window_size:, :], df_test[:, args.window_size:], 0.4)]
         print(f'Prediction Horizon {pred_horizon}')
-        plt.plot(lyapunov_time[:N_plot], pred[window_size:window_size+N_plot, :])
+        plt.plot(lyapunov_time[:N_plot], pred[args.window_size:args.window_size+N_plot, :])
 
-        plt.plot(lyapunov_time[:N_plot], pred[window_size:window_size+N_plot, -1], label='LSTM')
-        plt.plot(lyapunov_time[:N_plot], df_test[:, window_size:window_size+N_plot].T, 'k--')
-        plt.plot(lyapunov_time[:N_plot], df_test[-1, window_size:window_size+N_plot].T, 'k--', label='Reference')
+        plt.plot(lyapunov_time[:N_plot], pred[args.window_size:args.window_size+N_plot, -1], label='LSTM')
+        plt.plot(lyapunov_time[:N_plot], df_test[:, args.window_size:args.window_size+N_plot].T, 'k--')
+        plt.plot(lyapunov_time[:N_plot], df_test[-1, args.window_size:args.window_size+N_plot].T, 'k--', label='Reference')
         plt.xlabel("LT")
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.title(f'Prediction Horizon {pred_horizon:.2f}LT')
@@ -102,10 +95,10 @@ for folder_name in ['D10_pi-9', 'D10_pi-8']:  # ,'D10-10' next(os.walk(sweep_pat
         N_plot = 50*N_lyap
         missing_idx = list(set(range(0, 10)).difference(idx_lst))
         print(missing_idx)
-        lyapunov_time = np.arange(0, N/N_lyap, dt*upsampling/t_lyap)
-        plt.plot(lyapunov_time[:N_plot], pred[window_size:window_size+N_plot, missing_idx], label='LSTM')
+        lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
+        plt.plot(lyapunov_time[:N_plot], pred[args.window_size:args.window_size+N_plot, missing_idx], label='LSTM')
         plt.plot(lyapunov_time[:N_plot], df_test[missing_idx,
-                 window_size:window_size+N_plot].T, 'k--', label='Reference')
+                 args.window_size:args.window_size+N_plot].T, 'k--', label='Reference')
         plt.xlabel("LT")
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.title(f' Missing Observations: {len(missing_idx)}')
@@ -144,8 +137,8 @@ for folder_name in ['D10_pi-9', 'D10_pi-8']:  # ,'D10-10' next(os.walk(sweep_pat
         plt.close()
         # nrmse
         model_nrmse_time = nrmse_array(
-            pred[window_size: window_size + N_plot, :],
-            df_test[:, window_size: window_size + N_plot])
+            pred[args.window_size: args.window_size + N_plot, :],
+            df_test[:, args.window_size: args.window_size + N_plot])
         N_plot = min(5*N_lyap, len(lyapunov_time), len(model_nrmse_time))
         plt.plot(lyapunov_time[:N_plot], model_nrmse_time[:N_plot])
         plt.hlines(y=0.4, xmin=lyapunov_time[0], xmax=lyapunov_time[N_plot])

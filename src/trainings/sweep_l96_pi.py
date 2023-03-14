@@ -69,15 +69,13 @@ def main():
         print("WANDB Name", wand.name)
         ref_lyap = np.loadtxt(args.lyap_path)
 
-        filepath = args.data_path / f"pi-{args.n_random_idx}" / str(wand.name)
+        filepath = args.data_path / f"D-{args.n_random_idx}" / str(wand.name)
         reset_random_seeds()
         logs_checkpoint = make_folder_filepath(filepath, "logs")
         yaml_config_path = filepath / f'config.yml'
         generate_config(yaml_config_path, args)
         mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
-        idx_lst = random.sample(range(1, args.sys_dim+1), args.n_random_idx)
-        idx_lst.sort()
-        print(idx_lst)
+
         df_train, df_valid, df_test = df_train_valid_test_split(
             mydf[1:, :: args.upsampling],
             train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
@@ -95,6 +93,7 @@ def main():
             df_valid.transpose(),
             args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
         for batch, label in train_dataset.take(1):
+            print(idx_lst)
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
         runner = LSTMRunner(args, system_name='l96')
         model = runner.model
@@ -121,11 +120,12 @@ def main():
                 val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
+            
             loss_tracker.append_loss_to_tracker('valid', valid_loss_dd, valid_loss_reg, valid_loss_pi, val_step)
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
                   (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
             loss_tracker.save_and_update_loss_txt(logs_checkpoint)
-
+            early_stopper.early_stop(valid_loss_dd/val_step + args.pi_weighing*valid_loss_pi/val_step)
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
                        'train_physics_loss': float(train_loss_pi/step),
@@ -139,10 +139,10 @@ def main():
                 pred = prediction(model, df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
                 pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
-
+                print(args.window_size)
                 lyapunov_exponents = compute_lyapunov_exp(
                     create_test_window(df_test, window_size=args.window_size),
-                    model, args, 50 * N_lyap, sys_dim, le_dim=10, idx_lst=idx_lst)
+                    model, args, 10 * N_lyap, sys_dim, le_dim=20, idx_lst=idx_lst)
 
                 max_lyap_percent_error, l_2_error = return_lyap_err(ref_lyap, lyapunov_exponents)
                 print(max_lyap_percent_error, l_2_error)
@@ -160,15 +160,15 @@ def main():
                     early_stopper.reset_counter()
                     break
 
-        loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
-        model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
-        model.save_weights(model_checkpoint)
+                loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
+                model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+                model.save_weights(model_checkpoint)
         tf.keras.backend.clear_session()
 
     parser = argparse.ArgumentParser(description='Open Loop')
 
-    parser.add_argument('--n_epochs', type=int, default=5)
-    parser.add_argument('--epoch_steps', type=int, default=5)
+    parser.add_argument('--n_epochs', type=int, default=1000)
+    parser.add_argument('--epoch_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -188,12 +188,12 @@ def main():
     parser.add_argument('--t_end', type=int, default=425)
     parser.add_argument('--upsampling', type=int, default=1)
     parser.add_argument('--n_random_idx', type=int, default=10)
-    parser.add_argument('--lyap', type=float, default=1.2)
+    parser.add_argument('--lyap', type=float, default=1.55)
     parser.add_argument('--delta_t', type=float, default=0.01)
     parser.add_argument('--total_n', type=float, default=42500)
     parser.add_argument('--window_size', type=int, default=25)
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.4)
+    parser.add_argument('--train_ratio', type=float, default=0.8)
     parser.add_argument('--valid_ratio', type=float, default=0.1)
 
     # arguments to define paths
@@ -202,45 +202,86 @@ def main():
     parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
     args = parser.parse_args()
-
     sweep_config = {
-        'method': 'grid',
-        'metric': {
-            'name': 'valid_dd_loss',
-            'goal': 'minimize'
-        },
-        'parameters': {
-            'batch_size': {
-                'values': [128]
+            'method': 'grid',
+            'metric': {
+                'name': 'valid_dd_loss',
+                'goal': 'minimize'
             },
-            'learning_rate': {
-                'values': [0.001]
-            },
-            'window_size': {
-                'values': [20]
-            },
-            'n_cells': {
-                'values': [100]
-            },
-            'reg_weighing': {
-                'values': [1e-9]
-            },
-            'upsampling': {
-                'values': [1]
-            },
-            'n_random_idx': {
-                'values': [9, 8, 6]
-            },
-            'pi_weighing': {
-                'values': [0, 1e-1, 1e-3,  1e-2, 1e-4,  1e-6]
+            'parameters': {
+                'batch_size': {
+                    'values': [128]
+                },
+                'learning_rate': {
+                    'values': [0.001]
+                },
+                'window_size': {
+                    'values': [20]
+                },
+                'n_cells': {
+                    'values': [100]
+                },
+                'reg_weighing': {
+                    'values': [1e-9]
+                },
+                'upsampling': {
+                    'values': [1]
+                },
+                'n_random_idx': {
+                    'values': [6]
+                },
+                'pi_weighing': {
+                    'values': [0.1, 0.01, 0.001, 0, 1e-4]
+                }
             }
         }
-    }
-    sweep_id = wandb.sweep(sweep_config, project="test")
-    wandb.agent(sweep_id, function=run_lstm, count=1)
+    sweep_id = wandb.sweep(sweep_config, project="L96_D10")
+    wandb.agent(sweep_id, function=run_lstm, count=48)
 
 
 if __name__ == '__main__':
     main()
 
-# python sweep_l96_pi.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp test/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+# python sweep_l96_pi.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp L96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+
+#     sweep_config = {
+#         'method': 'grid',
+#         'metric': {
+#             'name': 'valid_dd_loss',
+#             'goal': 'minimize'
+#         },
+#         'parameters': {
+#             'batch_size': {
+#                 'values': [128]
+#             },
+#             'learning_rate': {
+#                 'values': [0.001]
+#             },
+#             'window_size': {
+#                 'values': [10]
+#             },
+#             'n_cells': {
+#                 'values': [200]
+#             },
+#             'reg_weighing': {
+#                 'values': [1e-9]
+#             },
+#             'upsampling': {
+#                 'values': [1]
+#             },
+#             'n_random_idx': {
+#                 'values': [10, 12, 14, 16, 18]
+#             },
+#             'pi_weighing': {
+#                 'values': [100, 10, 1, 0.1, 0.01, 0.001, 0, 1e-5]
+#             }
+#         }
+#     }
+#     sweep_id = wandb.sweep(sweep_config, project="L96_D20")
+#     wandb.agent(sweep_id, function=run_lstm, count=35)
+
+
+# if __name__ == '__main__':
+#     main()
+
+# # python sweep_l96_pi.py  -cp Yael_CSV/L96/dim_20_rk4_42500_0.01_stand13.33_trans.csv -dp L96/D20-c200/ -lyp Yael_CSV/L96/dim_20_lyapunov_exponents.txt

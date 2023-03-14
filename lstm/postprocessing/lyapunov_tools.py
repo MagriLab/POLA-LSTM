@@ -3,7 +3,7 @@ import numpy as np
 import einops
 
 
-def lstm_step_comb(u_t, h, c, model, window_size, idx, idx_lst=None, dim=3):
+def lstm_step_comb(u_t, h, c, model, args, idx, idx_lst=None, dim=3):
     """Executes one LSTM step for the Lyapunov exponent computation
 
     Args:
@@ -21,7 +21,7 @@ def lstm_step_comb(u_t, h, c, model, window_size, idx, idx_lst=None, dim=3):
     """
     if idx_lst == None:
         idx_lst = np.arange(0, u_t.shape[1])
-    if idx > window_size:  # for correct Jacobian, must multiply W in the beginning
+    if idx > args.window_size:  # for correct Jacobian, must multiply W in the beginning
         u_t = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
             0]) + model.layers[1].get_weights()[1], shape=(1, dim))
         u_t_temp = u_t
@@ -38,14 +38,14 @@ def lstm_step_comb(u_t, h, c, model, window_size, idx, idx_lst=None, dim=3):
     o = tf.sigmoid(z3)
 
     h_new = o * tf.tanh(c_new)
-    if idx <= window_size:
+    if idx <= args.window_size:
         u_t = tf.reshape(tf.matmul(h_new, model.layers[1].get_weights()[
             0]) + model.layers[1].get_weights()[1], shape=(1, dim))
         u_t_temp = u_t
     return u_t_temp, h_new, c_new
 
 
-def step_and_jac(u_t_in, h, c, model, window_size, idx, idx_lst, dim):
+def step_and_jac(u_t_in, h, c, model, args, idx, idx_lst=None, dim=None):
     """advances LSTM by one step and computes the Jacobian
 
     Args:
@@ -66,7 +66,7 @@ def step_and_jac(u_t_in, h, c, model, window_size, idx, idx_lst, dim):
         tape_h.watch(h)
         with tf.GradientTape(persistent=True) as tape_c:
             tape_c.watch(c)
-            u_t_out, h_new, c_new = lstm_step_comb(u_t_in, h, c, model, window_size, idx, idx_lst, dim=dim)
+            u_t_out, h_new, c_new = lstm_step_comb(u_t_in, h, c, model, args, idx, idx_lst, dim=dim)
             Jac_c_new_c = tf.reshape(tape_c.jacobian(c_new, c), shape=(cell_dim, cell_dim))
             Jac_h_new_c = tf.reshape(tape_c.jacobian(h_new, c), shape=(cell_dim, cell_dim))
         Jac_h_new_h = tf.reshape(tape_h.jacobian(h_new, h), shape=(cell_dim, cell_dim))
@@ -78,7 +78,7 @@ def step_and_jac(u_t_in, h, c, model, window_size, idx, idx_lst, dim):
     return Jac, u_t_out, h_new, c_new
 
 
-def step_and_jac_analytical(u_t, h, c, model, window_size, idx, idx_lst, dim):
+def step_and_jac_analytical(u_t, h, c, model, args, idx, idx_lst=None, dim=None):
     """advances LSTM by one step and computes the Jacobian
 
     Args:
@@ -98,7 +98,7 @@ def step_and_jac_analytical(u_t, h, c, model, window_size, idx, idx_lst, dim):
         idx_lst = np.arange(0, u_t.shape[1])
     n_cell = model.layers[1].get_weights()[0].shape[0]
     cell_dim = n_cell
-    if idx > window_size:  # for correct Jacobian, must multiply W in the beginning
+    if idx > args.window_size:  # for correct Jacobian, must multiply W in the beginning
         u_t = tf.reshape(tf.matmul(h, model.layers[1].get_weights()[
             0]) + model.layers[1].get_weights()[1], shape=(1, dim))
         u_t_temp = u_t

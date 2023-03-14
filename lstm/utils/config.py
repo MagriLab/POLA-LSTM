@@ -47,6 +47,8 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config['DATA']['SIGNAL TO NOISE RATIO'] = args.signal_noise_ratio
     config['DATA']['TRAINING RATIO'] = args.train_ratio
     config['DATA']['VALID RATIO'] = args.valid_ratio
+    config['DATA']['STANDARD NORM'] = args.standard_norm
+    
     with open(config_path, 'w+') as f:
         yaml.dump(config, f)
 
@@ -117,3 +119,40 @@ def load_config_to_dict(model_path: Path) -> Dict:
     with open(config_path, 'r') as stream:
         dict_loaded = yaml.safe_load(stream)
     return dict_loaded
+
+def load_config_to_argparse(model_path: Path) -> argparse.Namespace:
+    config_path = model_path / "config.yml"
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    args = argparse.Namespace()
+    args.n_epochs = config['ML_CONSTRAINTS']['N_EPOCHS']
+    args.epoch_steps =  config['ML_CONSTRAINTS']['EPOCH_STEPS'] 
+    args.batch_size =  config['ML_CONSTRAINTS']['BATCH_SIZE']
+    args.n_cells =  config['ML_CONSTRAINTS']['N_CELLS']
+    args.oloop_train =  config['ML_CONSTRAINTS']['OLOOP-TRAINED']
+    args.optimizer =  config['ML_CONSTRAINTS']['OPTIMIZER']
+    args.activation =  config['ML_CONSTRAINTS']['ACTIVATION']
+    args.learning_rate =  config['ML_CONSTRAINTS']['LR']
+    args.pi_weighing =  config['ML_CONSTRAINTS']['PI WEIGHT']
+    args.dropout =  config['ML_CONSTRAINTS']['DROPOUT']
+    args.reg_weighing =  config['ML_CONSTRAINTS']['REG WEIGHT']
+
+    # config:: lorenz_data
+    args.normalised = config['DATA']['NORMALISED']
+    args.t_0 = config['DATA']['T_0']
+    args.t_trans = config['DATA']['T_TRANS']
+    args.t_end = config['DATA']['T_END']
+    args.delta_t = config['DATA']['DELTA T']
+    args.total_n = config['DATA']['TOTAL_N']
+    args.window_size = config['DATA']['WINDOW_SIZE']
+    args.upsampling = config['DATA']['UPSAMPLING']
+    args.signal_noise_ratio = config['DATA']['SIGNAL TO NOISE RATIO']
+    args.train_ratio = config['DATA']['TRAINING RATIO']
+    args.valid_ratio = config['DATA']['VALID RATIO']
+    return args
+    
+    # args.ks_stand = config['DATA']['KS STAND']
+    # args.M = config['KS SOLVER']['M']
+    # args.N = config['KS SOLVER']['N']
+    # args.h = config['KS SOLVER']['h']
+    # args.L = config['KS SOLVER']['d']

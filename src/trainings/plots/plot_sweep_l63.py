@@ -10,13 +10,13 @@ from scipy import stats
 import tensorflow as tf
 sys.path.append('../../../')
 
-from lstm.utils.config import load_config_to_dict
+from lstm.utils.config import load_config_to_argparse
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.supress_tf_warning import tensorflow_shutup
 from lstm.postprocessing.nrmse import vpt, nrmse_array
 from lstm.preprocessing.data_processing import (df_train_valid_test_split,
                                                 train_valid_test_split, create_df_nd_random_md_mtm_idx)
-from lstm.lstm_model import load_model
+from lstm.lstm import LSTMRunner
 from lstm.closed_loop_tools_mtm import (prediction)
 warnings.simplefilter(action="ignore", category=FutureWarning)
 tf.keras.backend.set_floatx('float64')
@@ -39,65 +39,62 @@ for folder_name in ['pi-1']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
     for model_name in sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name / model_name
-        model_dict = load_config_to_dict(model_path)
-
+        args = load_config_to_argparse(model_path)
         dim = 3  # df_train.shape[0]
         n_random_idx = 1  # int(folder_name[-1])
         # dim = n_random_idx
-        window_size = model_dict['DATA']['WINDOW_SIZE']
-        n_cell = model_dict['ML_CONSTRAINTS']['N_CELLS']
         epochs = max([int(i) for i in next(os.walk(model_path / 'model'))[1]])
-        dt = model_dict['DATA']['DELTA T']  # time step
-        batch_size = model_dict['ML_CONSTRAINTS']['BATCH_SIZE']
         img_filepath = make_folder_filepath(model_path, 'images')
-        model = load_model(model_path, epochs, model_dict, dim=dim)
-        upsampling = model_dict['DATA']['UPSAMPLING']
-        train_ratio = model_dict['DATA']['TRAINING RATIO']*(57500/168500)
-        valid_ratio = model_dict['DATA']['VALID RATIO']*(57500/168500)
+        train_ratio = args.train_ratio*(57500/168500)
+        valid_ratio = args.valid_ratio*(57500/168500)
         random.seed(0)
         # idx_lst = random.sample(range(1, 10+1), n_random_idx)
         # idx_lst.sort()
         # print(idx_lst)
         df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: upsampling],
+            mydf[1:, :: args.upsampling],
             train_ratio=train_ratio, valid_ratio=valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(
-            mydf[0, ::upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
+            mydf[0, ::args.upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
         # Compare this prediction with the LE prediction
 
         t_lyap = 0.9**(-1)
-        N_lyap = int(t_lyap / (dt*upsampling))
+        N_lyap = int(t_lyap / (args.delta_t*args.upsampling))
         idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
             df_train.transpose(),
-            window_size, batch_size, df_train.shape[0],
+            args.window_size, args.batch_size, df_train.shape[0],
             n_random_idx=n_random_idx)
         missing_idx = list(set(range(0, 3)).difference(idx_lst))
         for batch, label in train_dataset.take(1):
             print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
+            
+        runner = LSTMRunner(args, 'l96', idx_lst)
+        runner.load_model(model_path, epochs)
+        model = runner.model
         batch_pred = model(batch)
 
         print('--- model successfully loaded---')
 
         N = 1000*N_lyap
-        pred = prediction(model, df_test, window_size, dim, n_random_idx, N=N)
+        pred = prediction(model, df_test, args.window_size, dim, n_random_idx, N=N)
         # /short Pred
-        lyapunov_time = np.arange(0, N/N_lyap, dt/t_lyap)
+        lyapunov_time = np.arange(0, N/N_lyap, args.delta_t/t_lyap)
         fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True)  # , figsize=(15, 15))
         N_plot = 10*N_lyap
-        ax1.plot(lyapunov_time[:N_plot-window_size], lorenz_normal[0]*df_test[0, window_size:N_plot].T)
-        ax1.plot(lyapunov_time[:N_plot-window_size], lorenz_normal[0]*pred[window_size:N_plot, 0])
+        ax1.plot(lyapunov_time[:N_plot-args.window_size], lorenz_normal[0]*df_test[0, args.window_size:N_plot].T)
+        ax1.plot(lyapunov_time[:N_plot-args.window_size], lorenz_normal[0]*pred[args.window_size:N_plot, 0])
         ax1.set_ylabel('x')
-        ax2.plot(lyapunov_time[:N_plot-window_size], lorenz_normal[1]*df_test[1, window_size:N_plot].T, )
-        ax2.plot(lyapunov_time[:N_plot-window_size], lorenz_normal[1]*pred[window_size:N_plot, 1])
+        ax2.plot(lyapunov_time[:N_plot-args.window_size], lorenz_normal[1]*df_test[1, args.window_size:N_plot].T, )
+        ax2.plot(lyapunov_time[:N_plot-args.window_size], lorenz_normal[1]*pred[args.window_size:N_plot, 1])
         ax2.set_ylabel('y')
-        ax3.plot(lyapunov_time[:N_plot-window_size], lorenz_normal[2]*df_test[2, window_size:N_plot].T, label='Target')
-        ax3.plot(lyapunov_time[:N_plot-window_size], lorenz_normal[2]*pred[window_size:N_plot, 2], label='LSTM')
+        ax3.plot(lyapunov_time[:N_plot-args.window_size], lorenz_normal[2]*df_test[2, args.window_size:N_plot].T, label='Target')
+        ax3.plot(lyapunov_time[:N_plot-args.window_size], lorenz_normal[2]*pred[args.window_size:N_plot, 2], label='LSTM')
         ax3.set_ylabel('z')
         ax3.set_xlabel('LT')
         # ax3.set_xlim(0, 50)
         ax3.legend(loc='center left', bbox_to_anchor=(1, 1.65))
         plt.suptitle(
-            f'Prediction Horizon: {lyapunov_time[vpt(pred[window_size:, :], df_test[:, window_size:], 0.4)]:.2f} LT')
+            f'Prediction Horizon: {lyapunov_time[vpt(pred[args.window_size:, :], df_test[:, args.window_size:], 0.4)]:.2f} LT')
         plt.savefig(f'{img_filepath}/{epochs}_{int(N_plot/N_lyap)}_LT_short_pred.png',
                     dpi=100, facecolor="w", bbox_inches="tight")
         print(f'Images saved at {img_filepath}/{epochs}_{int(N_plot/N_lyap)}_LT_short_pred.png')
@@ -105,8 +102,8 @@ for folder_name in ['pi-1']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
 
         # nrmse
         model_nrmse_time = nrmse_array(
-            pred[window_size: window_size + N_plot, :],
-            df_test[:, window_size: window_size + N_plot])
+            pred[args.window_size: args.window_size + N_plot, :],
+            df_test[:, args.window_size: args.window_size + N_plot])
         N_plot = min(5*N_lyap, len(lyapunov_time), len(model_nrmse_time))
         plt.plot(lyapunov_time[:N_plot], model_nrmse_time[:N_plot])
         plt.hlines(y=0.4, xmin=lyapunov_time[0], xmax=lyapunov_time[N_plot])
@@ -170,9 +167,9 @@ for folder_name in ['pi-1']:  # ,'D10-10' next(os.walk(sweep_path))[1]:
         test_time_end = 100*N_lyap
         ax1 = fig.add_subplot(1, 2, 1, projection="3d")
         ax1.plot(
-            lorenz_normal[0]*df_train[0, window_size: window_size + test_time_end],
-            lorenz_normal[1]*df_train[1, window_size: window_size + test_time_end],
-            lorenz_normal[2]*df_train[2, window_size: window_size + test_time_end],
+            lorenz_normal[0]*df_train[0, args.window_size: args.window_size + test_time_end],
+            lorenz_normal[1]*df_train[1, args.window_size: args.window_size + test_time_end],
+            lorenz_normal[2]*df_train[2, args.window_size: args.window_size + test_time_end],
             color="tab:blue",
             alpha=0.7,
         )

@@ -17,6 +17,18 @@ def df_train_valid_test_split(df, train_ratio=0.6, valid_ratio=0.2):
     )
     test = np.array(df[:, int(len_df_col * (train_ratio + valid_ratio)):])
     return train, valid, test
+def train_valid_test_split(df, train_ratio=0.6, valid_ratio=0.2):
+    len_df_col = len(df)
+    train = np.array(df[0: int(len_df_col * train_ratio)])
+    valid = np.array(
+        df[
+            int(len_df_col * train_ratio): int(
+                len_df_col * (train_ratio + valid_ratio)
+            )
+        ]
+    )
+    test = np.array(df[int(len_df_col * (train_ratio + valid_ratio)):])
+    return train, valid, test
 
 
 def create_df_3d(series, window_size, batch_size, shuffle_buffer):

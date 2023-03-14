@@ -161,7 +161,7 @@ def main():
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
                   (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
             loss_tracker.save_and_update_loss_txt(logs_checkpoint)
-
+            early_stopper.early_stop(valid_loss_dd/val_step + args.pi_weighing*valid_loss_pi/val_step)
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
                        'train_physics_loss': float(train_loss_pi/step),
