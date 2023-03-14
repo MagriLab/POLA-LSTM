@@ -24,15 +24,15 @@ tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 mydf = np.genfromtxt(
-    '/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
+    '../Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv',
     # '/Users/eo821/Documents/PhD_Research/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv',
     delimiter=",").astype(
     np.float64)
 
-sweep_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/L96/D20')
+sweep_path = Path('../L96/D20-c200')
 
 
-for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:  # ,'D10-10' next(os.walk(sweep_path))[1]:
+for folder_name in list(filter(lambda x: x != 'images', next(os.walk(sweep_path))[1])):
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
@@ -43,7 +43,7 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:  # ,'D10-1
         dim = 20  # df_train.shape[0]
         args.sys_dim = dim
         args.standard_norm = 13.33
-        n_random_idx = int(folder_name[-1])
+        n_random_idx = int(folder_name[-2:])
         epochs = max([int(i) for i in next(os.walk(model_path / 'model'))[1]])
         
         img_filepath = make_folder_filepath(model_path, 'images')
@@ -52,7 +52,7 @@ for folder_name in ['D-10', 'D-12', 'D-14', 'D-16', 'D-18', 'D-20' ]:  # ,'D10-1
         valid_ratio = args.valid_ratio*(42500/200000)
         random.seed(0)
         df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: args.upsampling],
+            mydf[1:, ::args.upsampling],
             train_ratio=train_ratio, valid_ratio=valid_ratio)
         time_train, time_valid, time_test = train_valid_test_split(
             mydf[0, ::args.upsampling], train_ratio=train_ratio, valid_ratio=valid_ratio)
