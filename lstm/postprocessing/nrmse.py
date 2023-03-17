@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Optional
+
 # implementation based on Backpropagation algorithms and RC in RNNs for
 # the forecasting of complex spatiotemporal dynamics by Vlachas (2020)
 
@@ -20,16 +21,16 @@ def nrmse(pred: np.ndarray, df_test: np.ndarray, n_length: Optional[int] = None)
         n_length = min(len(pred), df_test.shape[1])
     std = np.std(df_test[:, :n_length])
     diff = pred[:n_length, :] - df_test[:, :+n_length].T
-    return np.sqrt(np.mean(diff**2/std))
+    return np.sqrt(np.mean(diff**2 / std))
 
 
 def vpt(pred: np.ndarray, df_test: np.ndarray, threshold: float) -> int:
     """Calculate the "valid prediction time" (VPT) of a given prediction.
-        The VPT is defined as the maximum number of consecutive time steps 
+        The VPT is defined as the maximum number of consecutive time steps
         for which the NRMSE of the prediction is below a given threshold.
     Args:
         pred (np.ndarray): network prediction
-        df_test (np.ndarray): reference data 
+        df_test (np.ndarray): reference data
         threshold (float):  NRMSE threshold
 
     Returns:
@@ -38,15 +39,16 @@ def vpt(pred: np.ndarray, df_test: np.ndarray, threshold: float) -> int:
     for i in range(1, len(pred)):
         nrmse_i = nrmse(pred, df_test, n_length=i)
         if nrmse_i > threshold:
-            return i-1
+            return i - 1
     return len(pred)
+
 
 def nrmse_array(pred: np.ndarray, df_test: np.ndarray) -> np.array:
     """Calculate the normalized root mean square error (NRMSE) of a given prediction.
         Return NRMSE over time
     Args:
         pred (np.ndarray): network prediction
-        df_test (np.ndarray): reference data 
+        df_test (np.ndarray): reference data
 
     Returns:
         np.array: NRMSE index

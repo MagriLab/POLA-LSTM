@@ -2,9 +2,10 @@ import numpy as np
 from .data_processing import (
     df_train_valid_test_split,
     train_valid_test_split,
-    create_df_nd_random_md_mtm_idx,
+    create_df_nd_random_md_idx,
     create_test_window,
-    create_df_nd_even_md_mtm
+    create_df_nd_even_md,
+    create_df_nd,
 )
 
 
@@ -17,6 +18,7 @@ class Dataclass:
             self.data_path = model_args.data_path
             self.load_de_sol()
             self.split_train_valid_test()
+            self.create_batches()
         if model_args.lyap_path is not None:
             self.lyap_path = model_args.lyap_path
             self.load_lyap_ref()
@@ -46,21 +48,27 @@ class Dataclass:
             valid_ratio=self.model_args.valid_ratio,
         )
 
-        self.idx_lst, self.train_dataset = create_df_nd_random_md_mtm_idx(
+    def create_batches(self):
+        funcs = {
+            "full": create_df_nd,
+            "even": create_df_nd_even_md,
+            "random": create_df_nd_random_md_idx,
+        }
+        self.idx_lst, self.train_dataset = funcs[self.spacing](
             self.df_train.transpose(),
             self.model_args.window_size,
             self.model_args.batch_size,
             self.df_train.shape[0],
             n_random_idx=self.model_args.n_random_idx,
         )
-        _, self.valid_dataset = create_df_nd_random_md_mtm_idx(
+        _, self.valid_dataset = funcs[self.spacing](
             self.df_valid.transpose(),
             self.model_args.window_size,
             self.model_args.batch_size,
             1,
             n_random_idx=self.model_args.n_random_idx,
         )
-        _, self.test_dataset = create_df_nd_random_md_mtm_idx(
+        _, self.test_dataset = funcs[self.spacing](
             self.df_test.transpose(),
             self.model_args.window_size,
             self.model_args.batch_size,
