@@ -20,11 +20,11 @@ import wandb
 #      # Virtual devices must be set before GPUs have been initialize
 #         print(e)
 sys.path.append('../..')
-from lstm.preprocessing.data_processing import (create_df_nd_random_md_mtm_idx,
-                                                df_train_valid_test_split)
+from lstm.preprocessing.data_class import Dataclass
+from lstm.preprocessing.data_processing import create_test_window
 from lstm.utils.create_paths import make_folder_filepath
 from lstm.utils.random_seed import reset_random_seeds
-from lstm.utils.config import generate_config
+from lstm.utils.config import generate_config_ks
 from lstm.utils.learning_rates import decayed_learning_rate
 from lstm.closed_loop_tools_mtm import prediction
 from lstm.postprocessing.nrmse import vpt
@@ -40,256 +40,143 @@ tf.keras.backend.set_floatx('float64')
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
-def main():
-    def run_lstm():
-        def ks_time_step_batch(u, d=60, M=16, h=0.25):
-            # u before (time_steps, dim) now (batch, window, dim)
-            N = u.shape[2]
-            k = np.transpose(np.conj(np.concatenate((np.arange(0, N/2), np.array([0]), np.arange(-N/2+1, 0))))) * (2*np.pi/d)
-            L = k**2 - k**4
-            E = np.exp(h*L)
-            E_2 = np.exp(h*L/2)
-            M =16
-            r = np.exp(1j*np.pi*(np.arange(1, M+1)-0.5) / M)
-            LR = h * np.transpose(np.repeat([L], M, axis=0)) + np.repeat([r], N, axis=0)
-            Q = h*np.real(np.mean((np.exp(LR/2)-1)/LR, axis=1))
-            f1 = h*np.real(np.mean((-4-LR+np.exp(LR)*(4-3*LR+LR**2))/LR**3, axis=1))
-            f2 = h*np.real(np.mean((2+LR+np.exp(LR)*(-2+LR))/LR**3, axis=1))
-            f3 = h*np.real(np.mean((-4-3*LR-LR**2+np.exp(LR)*(4-LR))/LR**3, axis=1))
-            g = -0.5j*k
 
-            u = tf.complex(u, tf.zeros(u.shape, dtype=u.dtype))
-            v = tf.transpose(tf.signal.fft3d(u), (0, 2, 1))  # (batch,dim, window)
-            Nv = tf.einsum('b j i,i->b i j', tf.signal.fft3d(tf.square(u)), g)
-            a = tf.einsum('b i j,i->b i j', v, E_2) + tf.einsum('b i j,i->b i j',
-                                                                Nv, Q)  # (dim, window) (dim,) (batch, dim, window)
-            Na = tf.einsum('b j i,i-> b i j', tf.signal.fft3d(tf.signal.ifft3d(tf.transpose(a, (0, 2, 1)))**2),
-                        g)  # (window, dim) (dim,) (batch, dim, window)
-            b = tf.einsum('b i j,i->b i j', v, E_2) + tf.einsum('b i j,i->b i j',
-                                                                Na, Q)  # (dim, window) (dim,) (batch, dim, window)
-            Nb = tf.einsum('b j i,i->b i j', tf.signal.fft3d(tf.signal.ifft3d(tf.transpose(b, (0, 2, 1)))**2),
-                        g)  # (window, dim) (dim,), (batch, dim, window)
-            c = tf.einsum('b i j,i->b i j', a, E_2) + tf.einsum('b i j,i->b i j',
-                                                                2*Nb-Nv, Q)  # (dim, window) (dim,)(batch, dim, window)
-            Nc = tf.einsum('b j i,i->b i j', tf.signal.fft3d(tf.signal.ifft3d(tf.transpose(c, (0, 2, 1)))**2),
-                        g)  # (window, dim) (dim,)(batch, dim, window)
-            diff_v = tf.einsum('b i j,i->b i j', Nv, f1) + tf.einsum('b i j,i->b i j', 2*(Na+Nb),
-                                                                    f2) + tf.einsum('b i j,i->b i j', Nc, f3)  # (batch, dim, window)
-            v = tf.einsum('b i j,i-> b i j', v, E) + diff_v  # (batch, dim, window)
+def run_lstm(args: argparse.Namespace):
 
-            return tf.math.real(tf.signal.ifft3d(tf.transpose(v, (0, 2, 1))))
+    filepath = args.model_path / f"dd-{args.n_random_idx}" 
+    reset_random_seeds()
+    logs_checkpoint = make_folder_filepath(filepath, "logs")
+    yaml_config_path = filepath / f'config.yml'
+    generate_config_ks(yaml_config_path, args)
 
-        reset_random_seeds()
-        config_defaults = {
-            "learning_rate": 0.001,
-            "reg_weighing": 0.001,
-            "batch_size": 32,
-            "window_size": 100,
-            "upsampling": 1,
-            'n_cells': 10,
-            "n_random_idx": 10,
-            "pi_weighing": 0.0
-        }
-        # Initialize wandb with a sample project name
-        wand = wandb.init(config=config_defaults)
+    t_lyap = args.lyap**(-1)
+    N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
+    data = Dataclass(args)
+    runner = LSTMRunner(args, system_name="KS_dd")
+    model = runner.model
+    loss_tracker = LossTracker(logs_checkpoint)
+    early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-6)
+    sys_dim = data.df_train.shape[0]
+    print(f'Dimension of system {sys_dim}')
 
-        args.learning_rate = wandb.config.learning_rate
-        args.reg_weighing = wandb.config.reg_weighing
-        args.batch_size = wandb.config.batch_size
-        args.window_size = wandb.config.window_size
-        args.n_cells = wandb.config.n_cells
-        args.upsampling = wandb.config.upsampling
-        args.n_random_idx = wandb.config.n_random_idx
-        args.pi_weighing = wandb.config.pi_weighing
-        pi_weighing = wandb.config.pi_weighing
-        print("WANDB Name", wand.name)
-        ref_lyap = np.loadtxt(args.lyap_path)
+    for epoch in range(1, args.n_epochs+1):
+        model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
+        start_time = time.time()
+        train_loss_dd = 0
+        train_loss_pi = 0
+        for step, (x_batch_train, y_batch_train) in enumerate(data.train_dataset):
+            loss_dd, loss_reg, loss_pi = runner.train_step_pi(x_batch_train, y_batch_train)
+            train_loss_dd += loss_dd
+            train_loss_pi += loss_pi
+        loss_tracker.append_loss_to_tracker('train', train_loss_dd, loss_reg, train_loss_pi, step)
 
-        filepath = args.data_path / f"pi-{args.n_random_idx}" / str(wand.name)
-        reset_random_seeds()
-        logs_checkpoint = make_folder_filepath(filepath, "logs")
-        yaml_config_path = filepath / f'config.yml'
-        generate_config(yaml_config_path, args)
-        mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
-        idx_lst = random.sample(range(1, args.N+1), args.n_random_idx)
-        idx_lst.sort()
-        print(idx_lst)
-        df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: args.upsampling],
-            train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
+        print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
+        print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd/step, loss_pi/step))
 
-        sys_dim = df_train.shape[0]
-        print(f'Dimension of system {sys_dim}')
-        t_lyap = args.lyap**(-1)
-        N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
-        # Windowing
-        idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
-            df_train.transpose(),
-            args.window_size, args.batch_size, df_train.shape[0],
-            n_random_idx=args.n_random_idx)
-        _, valid_dataset = create_df_nd_random_md_mtm_idx(
-            df_valid.transpose(),
-            args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
-        for batch, label in train_dataset.take(1):
-            print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
-        runner = LSTMRunner(args, system_name='KS')
-        model = runner.model
-        loss_tracker = LossTracker(logs_checkpoint)
-        early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-6)
+        valid_loss_dd = 0
+        valid_loss_pi = 0
+        for val_step, (x_batch_valid, y_batch_valid) in enumerate(data.valid_dataset):
+            val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
+            valid_loss_dd += val_loss_dd
+            valid_loss_pi += val_loss_pi
+        loss_tracker.append_loss_to_tracker('valid', valid_loss_dd, valid_loss_reg, valid_loss_pi, val_step)
+        print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
+                (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
+        
+        loss_tracker.save_and_update_loss_txt(logs_checkpoint)
+        early_stopper.early_stop(valid_loss_dd/val_step + args.pi_weighing*valid_loss_pi/val_step)
+        wandb.log({'epochs': epoch,
+                    'train_dd_loss': float(train_loss_dd/step),
+                    'train_physics_loss': float(train_loss_pi/step),
+                    'valid_dd_loss': float(valid_loss_dd/val_step),
+                    'valid_full_dd_loss': float(valid_loss_dd/val_step),
+                    'valid_physics_loss': float(valid_loss_pi/val_step)})
 
-        for epoch in range(1, args.n_epochs+1):
-            model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
-            start_time = time.time()
-            train_loss_dd = 0
-            train_loss_pi = 0
-            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-                loss_dd, loss_reg, loss_pi = runner.train_step_pi(x_batch_train, y_batch_train)
-                train_loss_dd += loss_dd
-                train_loss_pi += loss_pi
-            loss_tracker.append_loss_to_tracker('train', train_loss_dd, loss_reg, train_loss_pi, step)
+        if epoch % args.epoch_steps == 0 or early_stopper.stop:
+            print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
+            N = 10*N_lyap
 
-            print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd/step, loss_pi/step))
+            pred = prediction(model, data.df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
+            lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
+            pred_horizon = lyapunov_time[vpt(pred[args.window_size:], data.df_valid[:, args.window_size:], 0.4)]
+            lyapunov_exponents = compute_lyapunov_exp(
+                create_test_window(data.df_valid, window_size=args.window_size),
+                model, args, 10 * N_lyap, sys_dim, le_dim=10, idx_lst=data.idx_lst)
 
-            valid_loss_dd = 0
-            valid_loss_pi = 0
-            for val_step, (x_batch_valid, y_batch_valid) in enumerate(valid_dataset):
-                val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
-                valid_loss_dd += val_loss_dd
-                valid_loss_pi += val_loss_pi
-            loss_tracker.append_loss_to_tracker('valid', valid_loss_dd, valid_loss_reg, valid_loss_pi, val_step)
-            print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
-                  (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
-            loss_tracker.save_and_update_loss_txt(logs_checkpoint)
-            early_stopper.early_stop(valid_loss_dd/val_step + args.pi_weighing*valid_loss_pi/val_step)
+            max_lyap_percent_error, l_2_error = return_lyap_err_ks(data.ref_lyap, lyapunov_exponents)
+            print(max_lyap_percent_error, l_2_error)
+            model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+            model.save_weights(model_checkpoint)
+
+
             wandb.log({'epochs': epoch,
-                       'train_dd_loss': float(train_loss_dd/step),
-                       'train_physics_loss': float(train_loss_pi/step),
-                       'valid_dd_loss': float(valid_loss_dd/val_step),
-                       'valid_full_dd_loss': float(valid_loss_dd/val_step),
-                       'valid_physics_loss': float(valid_loss_pi/val_step)})
+                'pi_weighing': float(pi_weighing),
+                'pred_horizon': float(pred_horizon),
+                'max_lyap_err': float(max_lyap_percent_error),
+                'lyap_l2_error': float(l_2_error)
+                })
+            if early_stopper.stop:
+                print('EARLY STOPPING')
+                early_stopper.reset_counter()
+                break
+                
+        
 
-            if epoch % args.epoch_steps == 0 or early_stopper.stop:
-                print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
-                N = 10*N_lyap
+    loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
+    model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+    model.save_weights(model_checkpoint)
+    tf.keras.backend.clear_session()    
 
-                pred = prediction(model, df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
-                lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
-                pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
+parser = argparse.ArgumentParser(description='Open Loop')
+parser.add_argument('--dd_loss_label', type=str, default="full")
+parser.add_argument('--n_epochs', type=int, default=10)
+parser.add_argument('--epoch_steps', type=int, default=1)
+parser.add_argument('--batch_size', type=int, default=256)
+parser.add_argument('--n_cells', type=int, default=200)
+parser.add_argument('--oloop_train', default=True, action='store_true')
+parser.add_argument('--optimizer', type=str, default='Adam')
+parser.add_argument('--activation', type=str, default='Tanh')
+parser.add_argument('--learning_rate', type=float, default=0.001)
+parser.add_argument('--dropout', type=float, default=0.0)
+parser.add_argument('--washout', type=int, default=2)
 
-                lyapunov_exponents = compute_lyapunov_exp(
-                    create_test_window(df_test, window_size=args.window_size),
-                    model, args, 50 * N_lyap, sys_dim, le_dim=10, idx_lst=idx_lst)
+parser.add_argument('--pi_weighing', type=float, default=0.0)
+parser.add_argument('--early_stop_patience', type=int, default=100)
+parser.add_argument('--reg_weighing', type=float, default=1e-9)
+parser.add_argument('--normalised', default=False, action='store_true')
+parser.add_argument('--t_0', type=int, default=0)
+parser.add_argument('--t_trans', type=int, default=250)
+parser.add_argument('--t_end', type=int, default=25000)
+parser.add_argument('--delta_t', type=float, default=0.25)
+parser.add_argument('--total_n', type=float, default=99000)
+parser.add_argument('--window_size', type=int, default=25)
+parser.add_argument('--sys_dim', type=float, default=128)
 
-                max_lyap_percent_error, l_2_error = return_lyap_err_ks(ref_lyap, lyapunov_exponents)
-                print(max_lyap_percent_error, l_2_error)
-                model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
-                model.save_weights(model_checkpoint)
-
-
-                wandb.log({'epochs': epoch,
-                    'pi_weighing': float(pi_weighing),
-                    'pred_horizon': float(pred_horizon),
-                    'max_lyap_err': float(max_lyap_percent_error),
-                    'lyap_l2_error': float(l_2_error)
-                    })
-                if early_stopper.stop:
-                    print('EARLY STOPPING')
-                    early_stopper.reset_counter()
-                    break
-                    
-            
-
-        loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
-        model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
-        model.save_weights(model_checkpoint)
-        tf.keras.backend.clear_session()    
-
-    parser = argparse.ArgumentParser(description='Open Loop')
-
-    parser.add_argument('--n_epochs', type=int, default=5)
-    parser.add_argument('--epoch_steps', type=int, default=1)
-    parser.add_argument('--batch_size', type=int, default=256)
-    parser.add_argument('--n_cells', type=int, default=200)
-    parser.add_argument('--oloop_train', default=True, action='store_true')
-    parser.add_argument('--optimizer', type=str, default='Adam')
-    parser.add_argument('--activation', type=str, default='Tanh')
-    parser.add_argument('--learning_rate', type=float, default=0.001)
-    parser.add_argument('--dropout', type=float, default=0.0)
-    parser.add_argument('--washout', type=int, default=2)
-
-    parser.add_argument('--pi_weighing', type=float, default=0.0)
-    parser.add_argument('--early_stop_patience', type=int, default=100)
-    parser.add_argument('--reg_weighing', type=float, default=1e-9)
-    parser.add_argument('--normalised', default=False, action='store_true')
-    parser.add_argument('--t_0', type=int, default=0)
-    parser.add_argument('--t_trans', type=int, default=250)
-    parser.add_argument('--t_end', type=int, default=25000)
-    parser.add_argument('--delta_t', type=float, default=0.25)
-    parser.add_argument('--total_n', type=float, default=99000)
-    parser.add_argument('--window_size', type=int, default=25)
-    parser.add_argument('--sys_dim', type=float, default=128)
-
-    parser.add_argument('--upsampling', type=int, default=1)
-    parser.add_argument('--n_random_idx', type=int, default=10)
-    parser.add_argument('--lyap', type=float, default=0.08)
-    parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.67)
-    parser.add_argument('--valid_ratio', type=float, default=0.17)
-    parser.add_argument('--standard_norm', type=float, default=3.58)
-    parser.add_argument('--M', type=int, default=64)
-    parser.add_argument('--N', type=int, default=128)
-    parser.add_argument('--h', type=float, default=0.25)
-    parser.add_argument('--d', type=int, default=62.8319)
+parser.add_argument('--upsampling', type=int, default=1)
+parser.add_argument('--n_random_idx', type=int, default=10)
+parser.add_argument('--lyap', type=float, default=0.08)
+parser.add_argument('--signal_noise_ratio', type=int, default=0)
+parser.add_argument('--train_ratio', type=float, default=0.25)
+parser.add_argument('--valid_ratio', type=float, default=0.05)
+parser.add_argument('--standard_norm', type=float, default=3.58)
+parser.add_argument('--M', type=int, default=64)
+parser.add_argument('--N', type=int, default=128)
+parser.add_argument('--h', type=float, default=0.25)
+parser.add_argument('--d', type=int, default=62.8319)
 
 
-    # arguments to define paths
-    parser.add_argument('-lyp', '--lyap_path', type=Path, required=True)
-    parser.add_argument('-dp', '--data_path', type=Path, required=True)
-    parser.add_argument('-cp', '--config_path', type=Path, required=True)
+# arguments to define paths
+parser.add_argument('-lyp', '--lyap_path', type=Path, required=True)
+parser.add_argument('-mp', '--model_path', type=Path, required=True)
+parser.add_argument('-dp', '--data_path', type=Path, required=True)
 
-    args = parser.parse_args()
-
-    sweep_config = {
-        'method': 'grid',
-        'metric': {
-            'name': 'valid_dd_loss',
-            'goal': 'minimize'
-        },
-        'parameters': {
-            'batch_size': {
-                'values': [64]
-            },
-            'learning_rate': {
-                'values': [0.001]
-            },
-            'window_size': {
-                'values': [20]
-            },
-            'reg_weighing': {
-                'values': [1e-9]
-            },
-            'upsampling': {
-                'values': [1]
-            },
-            'n_random_idx': {
-                'values': [round(128/3), round(128/4), round(128/5), round(128/6),  round(128/7), round(128/8)]
-            },
-            'pi_weighing': {
-                'values': [1]
-            },
-            'n_cells':{
-                'values': [10]
-                }
-
-        }
-    }
-    sweep_id = wandb.sweep(sweep_config, project="test")
-    wandb.agent(sweep_id, function=run_lstm, count=1)
+parsed_args = parser.parse_args()
 
 
-if __name__ == '__main__':
-    main()
+yaml_config_path = parsed_args.model_path / f'config.yml'
 
-# python many_to_many_sweep_ks_pi.py  -cp Yael_CSV/KS/KS_128_dx62_14400_stand_3.58_deltat_0.25_M_64_trans.csv -dp test/ -lyp Yael_CSV/KS/le_128_64.txt
+generate_config_ks(yaml_config_path, parsed_args)
+print(f'REG weight {parsed_args.reg_weighing}')
+run_lstm(parsed_args)
+# python many_to_many_sweep_ks_pi.py  -dp Yael_CSV/KS/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv -mp KS/128dof_dd/ -lyp Yael_CSV/KS/le_128_64.txt
 

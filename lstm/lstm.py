@@ -25,13 +25,14 @@ class LSTMRunner:
         self.reg_weight = args.reg_weighing
         self.args = args
         self.pi_weight = args.pi_weighing
+        self.dd_loss_label = args.dd_loss_label
 
         if idx_lst == None:
             self.idx_lst = np.arange(0, self.sys_dim)
         else:
             self.idx_lst = idx_lst
 
-        self.loss = Loss(self.args, self.idx_lst, self.system)
+        self.loss = Loss(self.args, self.idx_lst, self.system, self.dd_loss_label)
         self.build_model()
 
     # def __call__(self, *args: Any, **kwds: Any) -> Any:

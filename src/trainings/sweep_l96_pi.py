@@ -31,8 +31,7 @@ from lstm.utils.learning_rates import decayed_learning_rate
 from lstm.utils.config import generate_config
 from lstm.utils.random_seed import reset_random_seeds
 from lstm.utils.create_paths import make_folder_filepath
-from lstm.preprocessing.data_processing import (create_df_nd_random_md_mtm_idx,
-                                                df_train_valid_test_split)
+from lstm.preprocessing.data_class import Dataclass
 plt.rcParams["figure.facecolor"] = "w"
 
 tf.keras.backend.set_floatx('float64')
@@ -67,45 +66,30 @@ def main():
         args.pi_weighing = wandb.config.pi_weighing
         pi_weighing = wandb.config.pi_weighing
         print("WANDB Name", wand.name)
-        ref_lyap = np.loadtxt(args.lyap_path)
 
-        filepath = args.data_path / f"D-{args.n_random_idx}" / str(wand.name)
+        filepath = args.model_path / f"D-{args.n_random_idx}" / str(wand.name)
         reset_random_seeds()
         logs_checkpoint = make_folder_filepath(filepath, "logs")
-        yaml_config_path = filepath / f'config.yml'
-        generate_config(yaml_config_path, args)
-        mydf = np.genfromtxt(args.config_path, delimiter=",").astype(np.float64)
+        yaml_data_path = filepath / f'config.yml'
+        generate_config(yaml_data_path, args)
 
-        df_train, df_valid, df_test = df_train_valid_test_split(
-            mydf[1:, :: args.upsampling],
-            train_ratio=args.train_ratio, valid_ratio=args.valid_ratio)
-
-        sys_dim = df_train.shape[0]
-        print(f'Dimension of system {sys_dim}')
-        t_lyap = args.lyap**(-1)
-        N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
         # Windowing
-        idx_lst, train_dataset = create_df_nd_random_md_mtm_idx(
-            df_train.transpose(),
-            args.window_size, args.batch_size, df_train.shape[0],
-            n_random_idx=args.n_random_idx)
-        _, valid_dataset = create_df_nd_random_md_mtm_idx(
-            df_valid.transpose(),
-            args.window_size, args.batch_size, 1, n_random_idx=args.n_random_idx)
-        for batch, label in train_dataset.take(1):
-            print(idx_lst)
-            print(f'Shape of batch: {batch.shape} \n Shape of Label {label.shape}')
+        data = Dataclass(args)
         runner = LSTMRunner(args, system_name='l96')
         model = runner.model
         loss_tracker = LossTracker(logs_checkpoint)
         early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-6)
 
+        sys_dim = data.df_train.shape[0]
+        print(f'Dimension of system {sys_dim}')
+        t_lyap = args.lyap**(-1)
+        N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
         for epoch in range(1, args.n_epochs+1):
             model.optimizer.learning_rate = decayed_learning_rate(epoch, args.learning_rate)
             start_time = time.time()
             train_loss_dd = 0
             train_loss_pi = 0
-            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
+            for step, (x_batch_train, y_batch_train) in enumerate(data.train_dataset):
                 loss_dd, loss_reg, loss_pi = runner.train_step_pi(x_batch_train, y_batch_train)
                 train_loss_dd += loss_dd
                 train_loss_pi += loss_pi
@@ -116,7 +100,7 @@ def main():
 
             valid_loss_dd = 0
             valid_loss_pi = 0
-            for val_step, (x_batch_valid, y_batch_valid) in enumerate(valid_dataset):
+            for val_step, (x_batch_valid, y_batch_valid) in enumerate(data.valid_dataset):
                 val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
@@ -136,15 +120,15 @@ def main():
                 print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
                 N = 10*N_lyap
 
-                pred = prediction(model, df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
+                pred = prediction(model, data.df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
-                pred_horizon = lyapunov_time[vpt(pred[args.window_size:], df_valid[:, args.window_size:], 0.4)]
+                pred_horizon = lyapunov_time[vpt(pred[args.window_size:], data.df_valid[:, args.window_size:], 0.4)]
                 print(args.window_size)
                 lyapunov_exponents = compute_lyapunov_exp(
-                    create_test_window(df_test, window_size=args.window_size),
-                    model, args, 10 * N_lyap, sys_dim, le_dim=20, idx_lst=idx_lst)
+                    data.create_test_window('valid'),
+                    model, args, 10 * N_lyap, sys_dim, le_dim=20, idx_lst=data.idx_lst)
 
-                max_lyap_percent_error, l_2_error = return_lyap_err(ref_lyap, lyapunov_exponents)
+                max_lyap_percent_error, l_2_error = return_lyap_err(data.ref_lyap, lyapunov_exponents)
                 print(max_lyap_percent_error, l_2_error)
                 model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
                 model.save_weights(model_checkpoint)
@@ -198,8 +182,8 @@ def main():
 
     # arguments to define paths
     parser.add_argument('-lyp', '--lyap_path', type=Path, required=True)
+    parser.add_argument('-mp', '--model_path', type=Path, required=True)
     parser.add_argument('-dp', '--data_path', type=Path, required=True)
-    parser.add_argument('-cp', '--config_path', type=Path, required=True)
 
     args = parser.parse_args()
     sweep_config = {
@@ -231,18 +215,18 @@ def main():
                     'values': [6]
                 },
                 'pi_weighing': {
-                    'values': [0.1, 0.01, 0.001, 0, 1e-4]
+                    'values': [0.001, 0, 1e-4]
                 }
             }
         }
     sweep_id = wandb.sweep(sweep_config, project="L96_D10")
-    wandb.agent(sweep_id, function=run_lstm, count=48)
+    wandb.agent(sweep_id, function=run_lstm, count=3)
 
 
 if __name__ == '__main__':
     main()
 
-# python sweep_l96_pi.py  -cp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -dp L96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+# python sweep_l96_pi.py  -dp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -mp L96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
 
 #     sweep_config = {
 #         'method': 'grid',

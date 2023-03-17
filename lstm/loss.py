@@ -3,17 +3,21 @@ from .ks import ks_time_step_batch
 from .lorenz96 import RK4_step_l96
 
 class Loss():
-    def __init__(self, args, idx_lst, system) -> None:
+    def __init__(self, args, idx_lst, system, dd_loss_label) -> None:
         self.args = args
         self.idx_lst = idx_lst
         self.system = system
-        pass
+        self.dd_loss_label = dd_loss_label
+        print(f"Numerial Equation: {self.system}")
     
     @tf.function
     def data_driven_loss(self, prediction, y_batch_train):
         mse = tf.keras.losses.MeanSquaredError()
-        loss_dd = mse(tf.gather(y_batch_train, indices=self.idx_lst, axis=2),
-                      tf.gather(prediction, indices=self.idx_lst, axis=2))
+        if self.dd_loss_label == 'full':
+            loss_dd = mse(y_batch_train, prediction)
+        else:
+            loss_dd = mse(tf.gather(y_batch_train, indices=self.idx_lst, axis=2),
+                        tf.gather(prediction, indices=self.idx_lst, axis=2))
         return loss_dd
 
     def l2_loss(self, prediction):
@@ -21,15 +25,11 @@ class Loss():
 
     def pi_loss(self, prediction):
         mse = tf.keras.losses.MeanSquaredError()
-        if self.system == 'KS':
+        if self.system == "KS":
             solver_time_step = ks_time_step_batch(prediction*self.args.standard_norm,
                                                   d=self.args.d, M=self.args.M, h=self.args.h)
             loss_pi = mse(prediction[:, 1:, :]*self.args.standard_norm, solver_time_step[:, :-1, :])
-        if self.system=='l96':
-            # missing_idx = list(set(range(0, self.args.sys_dim)).difference(self.idx_lst))
-            # loss_pi = mse(tf.gather(backward_diff(prediction*self.args.standard_norm), missing_idx, axis=2),
-            #               tf.gather(l96_batch(prediction*self.args.standard_norm, p=8)[:, :-1, :], missing_idx, axis=2))
-            
+        elif self.system=='l96':
             loss_pi = mse(prediction[:, 1:, :]*self.args.standard_norm, RK4_step_l96(prediction*self.args.standard_norm, delta_t=self.args.delta_t)[:, :-1, :])
         else:
             print(f"{self.system} not defined yet")
