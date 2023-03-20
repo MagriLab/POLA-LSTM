@@ -21,7 +21,9 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config: Dict[str, Dict[str, Any]] = {}
 
     # config :: ml_constraints
+    # config :: ml_constraints
     config["ML_CONSTRAINTS"] = {}
+    config["ML_CONSTRAINTS"]["DD_LOSS_LABEL"] = args.dd_loss_label
     config["ML_CONSTRAINTS"]["N_EPOCHS"] = args.n_epochs
     config["ML_CONSTRAINTS"]["EPOCH_STEPS"] = args.epoch_steps
     config["ML_CONSTRAINTS"]["BATCH_SIZE"] = args.batch_size
@@ -33,10 +35,12 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config["ML_CONSTRAINTS"]["PI WEIGHT"] = args.pi_weighing
     config["ML_CONSTRAINTS"]["DROPOUT"] = args.dropout
     config["ML_CONSTRAINTS"]["REG WEIGHT"] = args.reg_weighing
+    config["ML_CONSTRAINTS"]["EARLY_STOP_PATIENCE"] = args.early_stop_patience
 
-    # config:: lorenz_data
+    # config:: data
     config["DATA"] = {}
     config["DATA"]["NORMALISED"] = args.normalised
+    config["DATA"]["SYS_DIM"] = args.sys_dim
     config["DATA"]["T_0"] = args.t_0
     config["DATA"]["T_TRANS"] = args.t_trans
     config["DATA"]["T_END"] = args.t_end
@@ -48,6 +52,9 @@ def generate_config(config_path: Path, args: argparse.Namespace) -> None:
     config["DATA"]["TRAINING RATIO"] = args.train_ratio
     config["DATA"]["VALID RATIO"] = args.valid_ratio
     config["DATA"]["STANDARD NORM"] = args.standard_norm
+    config["DATA"]["N_RANDOM_IDX"] = args.n_random_idx
+    config["DATA"]["LYAP"] = args.lyap
+    config["DATA"]["SPACING"] = args.spacing
 
     config["PATHS"] = {}
     config["PATHS"]["lyap_path"] = str(args.lyap_path)
@@ -86,9 +93,9 @@ def generate_config_ks(config_path: Path, args: argparse.Namespace) -> None:
     config["ML_CONSTRAINTS"]["PI WEIGHT"] = args.pi_weighing
     config["ML_CONSTRAINTS"]["DROPOUT"] = args.dropout
     config["ML_CONSTRAINTS"]["REG WEIGHT"] = args.reg_weighing
-    config["ML_CONSTRAINTS"]["WASHOUT"] = args.washout
+    config["ML_CONSTRAINTS"]["EARLY_STOP_PATIENCE"] = args.early_stop_patience
 
-    # config:: lorenz_data
+    # config:: data
     config["DATA"] = {}
     config["DATA"]["NORMALISED"] = args.normalised
     config["DATA"]["SYS_DIM"] = args.sys_dim
@@ -103,6 +110,9 @@ def generate_config_ks(config_path: Path, args: argparse.Namespace) -> None:
     config["DATA"]["TRAINING RATIO"] = args.train_ratio
     config["DATA"]["VALID RATIO"] = args.valid_ratio
     config["DATA"]["STANDARD NORM"] = args.standard_norm
+    config["DATA"]["N_RANDOM_IDX"] = args.n_random_idx
+    config["DATA"]["LYAP"] = args.lyap
+    config["DATA"]["SPACING"] = args.spacing
 
     config["KS SOLVER"] = {}
     config["KS SOLVER"]["M"] = args.M
@@ -111,9 +121,9 @@ def generate_config_ks(config_path: Path, args: argparse.Namespace) -> None:
     config["KS SOLVER"]["d"] = args.d
 
     config["PATHS"] = {}
-    config["PATHS"]["lyap_path"] =  str(args.lyap_path)
-    config["PATHS"]["model_path"] =  str(args.model_path)
-    config["PATHS"]["data_path"] =  str(args.data_path)
+    config["PATHS"]["lyap_path"] = str(args.lyap_path)
+    config["PATHS"]["model_path"] = str(args.model_path)
+    config["PATHS"]["data_path"] = str(args.data_path)
 
     with open(config_path, "w+") as f:
         yaml.dump(config, f)
@@ -151,7 +161,8 @@ def load_config_to_argparse(model_path: Path) -> argparse.Namespace:
     args.dropout = config["ML_CONSTRAINTS"]["DROPOUT"]
     args.reg_weighing = config["ML_CONSTRAINTS"]["REG WEIGHT"]
     args.dd_loss_label = config["ML_CONSTRAINTS"]["DD_LOSS_LABEL"]
-    # config:: lorenz_data
+    args.early_stop_patience = config["ML_CONSTRAINTS"]["EARLY_STOP_PATIENCE"]
+    # config:: data
     args.normalised = config["DATA"]["NORMALISED"]
     args.t_0 = config["DATA"]["T_0"]
     args.t_trans = config["DATA"]["T_TRANS"]
@@ -163,6 +174,12 @@ def load_config_to_argparse(model_path: Path) -> argparse.Namespace:
     args.signal_noise_ratio = config["DATA"]["SIGNAL TO NOISE RATIO"]
     args.train_ratio = config["DATA"]["TRAINING RATIO"]
     args.valid_ratio = config["DATA"]["VALID RATIO"]
+    args.sys_dim = config["DATA"]["SYS_DIM"]
+    args.standard_norm = config["DATA"]["STANDARD NORM"]
+    args.n_random_idx = config["DATA"]["N_RANDOM_IDX"]
+    args.lyap = config["DATA"]["LYAP"]
+    args.spacing = config["DATA"]["SPACING"]
+
     return args
 
     # args.ks_stand = config['DATA']['KS STAND']

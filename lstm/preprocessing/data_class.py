@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf 
 from .data_processing import (
     df_train_valid_test_split,
     train_valid_test_split,
@@ -19,6 +20,7 @@ class Dataclass:
             self.load_de_sol()
             self.split_train_valid_test()
             self.create_batches()
+            print(self.idx_lst)
         if model_args.lyap_path is not None:
             self.lyap_path = model_args.lyap_path
             self.load_lyap_ref()
@@ -54,21 +56,21 @@ class Dataclass:
             "even": create_df_nd_even_md,
             "random": create_df_nd_random_md_idx,
         }
-        self.idx_lst, self.train_dataset = funcs[self.spacing](
+        self.idx_lst, self.train_dataset = funcs[self.model_args.spacing](
             self.df_train.transpose(),
             self.model_args.window_size,
             self.model_args.batch_size,
             self.df_train.shape[0],
             n_random_idx=self.model_args.n_random_idx,
         )
-        _, self.valid_dataset = funcs[self.spacing](
+        _, self.valid_dataset = funcs[self.model_args.spacing](
             self.df_valid.transpose(),
             self.model_args.window_size,
             self.model_args.batch_size,
             1,
             n_random_idx=self.model_args.n_random_idx,
         )
-        _, self.test_dataset = funcs[self.spacing](
+        _, self.test_dataset = funcs[self.model_args.spacing](
             self.df_test.transpose(),
             self.model_args.window_size,
             self.model_args.batch_size,
@@ -81,15 +83,15 @@ class Dataclass:
     def return_test_window(self, data_type):
         "starting test window"
         if data_type == "train":
-            test_window = create_test_window(
+            test_window = tf.gather(create_test_window(
                 self.df_train, window_size=self.model_args.window_size
-            )
+            ), self.idx_lst, axis=2)
         elif data_type == "valid":
-            test_window = create_test_window(
+            test_window = tf.gather(create_test_window(
                 self.df_valid, window_size=self.model_args.window_size
-            )
+            ), self.idx_lst, axis=2)
         elif data_type == "test":
-            test_window = create_test_window(
+            test_window = tf.gather(create_test_window(
                 self.df_test, window_size=self.model_args.window_size
-            )
+            ), self.idx_lst, axis=2)
         return test_window

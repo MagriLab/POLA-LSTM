@@ -1,6 +1,6 @@
 import tensorflow as tf
-from differential_equations.lorenz96 import RK4_step_l96
-from differential_equations.ks import ks_time_step_batch
+from .differential_equations.lorenz96 import RK4_step_l96
+from .differential_equations.ks import ks_time_step_batch
 
 class Loss():
     def __init__(self, args, idx_lst, system, dd_loss_label) -> None:
