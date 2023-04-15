@@ -57,3 +57,8 @@ def RK4_step_l96(u, delta_t):
     K4 = l96_batch(u + delta_t*K3)
     u = u + delta_t * (K1/2.0 + K2 + K3 + K4/2.0) / 3.0
     return u
+
+def euler_step_l96(u, delta_t):
+    K1 = l96_batch(u)
+    u = u + delta_t * K1
+    return u
