@@ -20,8 +20,8 @@ def nrmse(pred: np.ndarray, df_test: np.ndarray, n_length: Optional[int] = None)
     if n_length == None:
         n_length = min(len(pred), df_test.shape[1])
     std = np.std(df_test[:, :n_length])
-    diff = pred[:n_length, :] - df_test[:, :+n_length].T
-    return np.sqrt(np.mean(diff**2 / std))
+    diff = pred[:n_length, :] - df_test[:, :n_length].T
+    return np.sqrt(np.mean(diff**2 / std**2))
 
 
 def vpt(pred: np.ndarray, df_test: np.ndarray, threshold: float) -> int:
