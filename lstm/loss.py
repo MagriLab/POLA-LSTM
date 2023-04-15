@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .differential_equations.lorenz96 import RK4_step_l96
+from .differential_equations.lorenz96 import RK4_step_l96, euler_step_l96
 from .differential_equations.ks import ks_time_step_batch
 
 class Loss():
