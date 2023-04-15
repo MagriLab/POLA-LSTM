@@ -12,8 +12,8 @@ gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[0], 'GPU')
-        tf.config.set_logical_device_configuration(gpus[0], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+        tf.config.set_visible_devices(gpus[1], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
@@ -75,7 +75,7 @@ def main():
 
         # Windowing
         data = Dataclass(args)
-        runner = LSTMRunner(args, system_name='l96')
+        runner = LSTMRunner(args, system_name='l96', idx_lst=data.idx_lst)
         model = runner.model
         loss_tracker = LossTracker(logs_checkpoint)
         early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-6)
@@ -96,42 +96,40 @@ def main():
             loss_tracker.append_loss_to_tracker('train', train_loss_dd, loss_reg, train_loss_pi, step)
 
             print("Epoch: %d, Time: %.1fs , Batch: %d" % (epoch, time.time() - start_time, step))
-            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (loss_dd/step, loss_pi/step))
-
+            print("TRAINING: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E" % (train_loss_dd/step, train_loss_pi/step))
             valid_loss_dd = 0
             valid_loss_pi = 0
+            valid_full_loss = 0 
             for val_step, (x_batch_valid, y_batch_valid) in enumerate(data.valid_dataset):
-                val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
+                val_loss_dd, valid_loss_reg, val_loss_pi, val_full_loss = runner.valid_step_pi(x_batch_valid, y_batch_valid)
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
-            
+                valid_full_loss += val_full_loss
             loss_tracker.append_loss_to_tracker('valid', valid_loss_dd, valid_loss_reg, valid_loss_pi, val_step)
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
-                  (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
+                  (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_full_loss/val_step))
             loss_tracker.save_and_update_loss_txt(logs_checkpoint)
             early_stopper.early_stop(valid_loss_dd/val_step + args.pi_weighing*valid_loss_pi/val_step)
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
                        'train_physics_loss': float(train_loss_pi/step),
                        'valid_dd_loss': float(valid_loss_dd/val_step),
+                       'valid_full_dd_loss': float(valid_full_loss/val_step),
                        'valid_physics_loss': float(valid_loss_pi/val_step)})
 
             if epoch % args.epoch_steps == 0 or early_stopper.stop:
                 print("LEARNING RATE:%.2e" % model.optimizer.learning_rate)
                 N = 10*N_lyap
 
-                pred = prediction(model, data.df_valid, args.window_size, sys_dim, args.n_random_idx, N=N)
+                pred = prediction(model, data.df_valid, args.window_size, sys_dim, data.idx_lst, N=N)
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
-                pred_horizon = lyapunov_time[vpt(pred[args.window_size:], data.df_valid[:, args.window_size:], 0.4)]
-                print(args.window_size)
+                pred_horizon = lyapunov_time[vpt(pred[args.window_size:], data.df_valid[:, args.window_size:], 0.5)]
                 lyapunov_exponents = compute_lyapunov_exp(
-                    data.create_test_window('valid'),
-                    model, args, 10 * N_lyap, sys_dim, le_dim=20, idx_lst=data.idx_lst)
+                    create_test_window(data.df_valid, window_size=args.window_size),
+                    model, args, 10 * N_lyap, sys_dim, le_dim=10, idx_lst=data.idx_lst)
 
                 max_lyap_percent_error, l_2_error = return_lyap_err(data.ref_lyap, lyapunov_exponents)
                 print(max_lyap_percent_error, l_2_error)
-                model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
-                model.save_weights(model_checkpoint)
 
                 wandb.log({'epochs': epoch,
                            'pi_weighing': float(pi_weighing),
@@ -144,15 +142,16 @@ def main():
                     early_stopper.reset_counter()
                     break
 
-                loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
-                model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
-                model.save_weights(model_checkpoint)
+        loss_tracker.loss_arr_to_tensorboard(logs_checkpoint)
+        model_checkpoint = filepath / "model" / f"{epoch}" / "weights"
+        model.save_weights(model_checkpoint)
         tf.keras.backend.clear_session()
 
     parser = argparse.ArgumentParser(description='Open Loop')
+    parser.add_argument('--dd_loss_label', type=str, default="full") #full or partial
 
-    parser.add_argument('--n_epochs', type=int, default=1000)
-    parser.add_argument('--epoch_steps', type=int, default=200)
+    parser.add_argument('--n_epochs', type=int, default=2000)
+    parser.add_argument('--epoch_steps', type=int, default=50)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=50)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -161,10 +160,11 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--dropout', type=float, default=0.0)
 
+    parser.add_argument('--washout', type=int, default=0)
     parser.add_argument('--standard_norm',  type=float, default=13.33)
-    parser.add_argument('--sys_dim', type=float, default=10)
+    parser.add_argument('--sys_dim', type=float, default=20)
     parser.add_argument('--pi_weighing', type=float, default=0.0)
-    parser.add_argument('--early_stop_patience', type=int, default=100)
+    parser.add_argument('--early_stop_patience', type=int, default=50)
     parser.add_argument('--reg_weighing', type=float, default=0.0)
     parser.add_argument('--normalised', default=False, action='store_true')
     parser.add_argument('--t_0', type=int, default=0)
@@ -177,8 +177,9 @@ def main():
     parser.add_argument('--total_n', type=float, default=42500)
     parser.add_argument('--window_size', type=int, default=25)
     parser.add_argument('--signal_noise_ratio', type=int, default=0)
-    parser.add_argument('--train_ratio', type=float, default=0.8)
+    parser.add_argument('--train_ratio', type=float, default=0.4)
     parser.add_argument('--valid_ratio', type=float, default=0.1)
+    parser.add_argument('--spacing', type=str, default="random")
 
     # arguments to define paths
     parser.add_argument('-lyp', '--lyap_path', type=Path, required=True)
@@ -200,7 +201,7 @@ def main():
                     'values': [0.001]
                 },
                 'window_size': {
-                    'values': [20]
+                    'values': [20, 50]
                 },
                 'n_cells': {
                     'values': [100]
@@ -212,21 +213,21 @@ def main():
                     'values': [1]
                 },
                 'n_random_idx': {
-                    'values': [6]
+                    'values': [18]
                 },
                 'pi_weighing': {
-                    'values': [0.001, 0, 1e-4]
+                    'values': [0]
                 }
             }
         }
-    sweep_id = wandb.sweep(sweep_config, project="L96_D10")
-    wandb.agent(sweep_id, function=run_lstm, count=3)
+    sweep_id = wandb.sweep(sweep_config, project="L96-D20")
+    wandb.agent(sweep_id, function=run_lstm, count=2)
 
 
 if __name__ == '__main__':
     main()
 
-# python sweep_l96_pi.py  -dp Yael_CSV/L96/dim_10_rk4_42500_0.01_stand13.33_trans.csv -mp L96/D10/ -lyp Yael_CSV/L96/dim_10_lyapunov_exponents.txt
+# python sweep_l96_pi.py  -dp Yael_CSV/L96/dim_20_rk4_42500_0.01_stand13.33_trans.csv -mp L96_d20_rk4_ptf/ -lyp Yael_CSV/L96/dim_20_lyapunov_exponents.txt
 
 #     sweep_config = {
 #         'method': 'grid',

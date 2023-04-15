@@ -1,5 +1,3 @@
-
-
 from scipy.fft import fft
 import sys
 import os
@@ -35,20 +33,20 @@ tf.keras.backend.set_floatx('float64')
 tensorflow_shutup()
 
 norm = 3.58
-sweep_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/KS/128dof_dd')
+sweep_path = Path('../KS/128dof_dd_new')
 
 
-for folder_name in ["dd-26", "dd-32", "dd-64"]:#next(os.walk(sweep_path))[1]:
+for folder_name in ["dd-32"]:#next(os.walk(sweep_path))[1]:
     sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
     img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
-    for model_name in sweep_models: #sweep_models:
+    for model_name in ['exalted-sweep-3', 'hardy-sweep-1']: #sweep_models:
         print(model_name)
         model_path = sweep_path / folder_name / model_name
         args = load_config_to_argparse(model_path)
         dim = 128 # df_train.shape[0]
         args.sys_dim = dim
-        args.data_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/KS/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv')
-        args.lyap_path = Path('/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/KS/le_128_64_20pi_025_tmax_50000.txt')
+        args.data_path = Path('../Yael_CSV/KS/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv')
+        args.lyap_path = Path('../Yael_CSV/KS/le_128_64_20pi_025_tmax_50000.txt')
         data = Dataclass(args)
         epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
 

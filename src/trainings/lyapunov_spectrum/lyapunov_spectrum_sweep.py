@@ -14,9 +14,9 @@ gpus = tf.config.list_physical_devices("GPU")
 if gpus:
     # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
     try:
-        tf.config.set_visible_devices(gpus[1], "GPU")
+        tf.config.set_visible_devices(gpus[2], "GPU")
         tf.config.set_logical_device_configuration(
-            gpus[1], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)]
+            gpus[2], [tf.config.LogicalDeviceConfiguration(memory_limit=3072)]
         )
         logical_gpus = tf.config.list_logical_devices("GPU")
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
@@ -38,6 +38,7 @@ from lstm.postprocessing.lyapunov_tools import (
     step_and_jac,
     step_and_jac_analytical,
 )
+from lstm.postprocessing.clv_func_clean import normalize
 from lstm.postprocessing import clv_func_clean, clv_angle_plot
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -50,48 +51,87 @@ tensorflow_shutup()
 # ref_clv_hf = h5py.File(Path('../Yael_CSV/L96/ESN_target_CLV_dt_0.01_dim_10.h5'),'r+')
 # FTCLE_targ = np.array(ref_clv_hf.get('thetas_clv')).T
 # ref_clv_hf.close()
-le_sweep_models = [
-    "azure-sweep-7",
-    "breezy-sweep-7",
-    "cosmic-sweep-10",
-    "denim-sweep-4",
-    "iconic-sweep-8",
-    "warm-sweep-7",
-    "frosty-sweep-13",
-    "super-sweep-10",
-    "balmy-sweep-9",
-    "azure-sweep-13",
-    "stellar-sweep-17",
-    "vague-sweep-14",
-    "treasured-sweep-1",
-    "whole-sweep-2"
-]
-sweep_path = Path("../KS/128dof_dd/")
-for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
-    sweep_models = list(filter(lambda x: x != "images", next(os.walk(sweep_path / folder_name))[1]))
-    print(sweep_models)
-    img_filepath_folder = make_folder_filepath(sweep_path / folder_name, "images")
+def compute_CLV(QQ, RR):
+    """
+    Calculates the Covariant Lyapunov Vectors (CLVs) using the Ginelli et al, PRL 2007 method.
 
+    Args:
+    - QQ (numpy.ndarray): matrix containing the timeseries of Gram-Schmidt vectors (shape: (n_cells_x2,NLy,tly))
+    - RR (numpy.ndarray): matrix containing the timeseries of upper-triangualar R  (shape: (NLy,NLy,tly))
+    - NLy (int): number of Lyapunov exponents
+    - n_cells_x2 (int): dimension of the hidden states
+    - dt (float): integration time step
+    - subspace_LEs_indeces (numpy.ndarray): indices of the Lyapunov exponents signs for positive and neutral. (shape: (2,))
+
+    Returns:
+    - nothing
+    """
+    n_cells_x2 = QQ.shape[0]
+    NLy = QQ.shape[1]
+    dt=0.25
+    tly = np.shape(QQ)[-1]
+    su = int(tly / 10)
+    sd = int(tly / 10)
+    s  = su          # index of spinup time
+    e  = tly+1 - sd  # index of spindown time
+    tau = int(dt/dt)     #time for finite-time lyapunov exponents
+
+    #Calculation of CLVs
+    C = np.zeros((NLy,NLy,tly))  # coordinates of CLVs in local GS vector basis
+    D = np.zeros((NLy,tly))  # diagonal matrix
+    V = np.zeros((n_cells_x2,NLy,tly))  # coordinates of CLVs in physical space (each column is a vector)
+
+    # FTCLE
+    il  = np.zeros((NLy,tly+1)) #Finite-time lyapunov exponents along CLVs
+
+    # initialise components to I
+    C[:,:,-1] = np.eye(NLy)
+    D[:,-1]   = np.ones(NLy)
+    V[:,:,-1] = np.dot(np.real(QQ[:,:,-1]), C[:,:,-1])
+
+    for i in reversed(range( tly-1 ) ):
+        C[:,:,i], D[:,i]        = normalize(scipy.linalg.solve_triangular(np.real(RR[:,:,i]), C[:,:,i+1]))
+        V[:,:,i]                = np.dot(np.real(QQ[:,:,i]), C[:,:,i])
+
+    # FTCLE computations
+    for j in np.arange(D.shape[1]): #time loop
+        il[:,j] = -(1./dt)*np.log(D[:,j])
+        
+
+    #normalize CLVs before measuring their angles.
+    timetot = np.shape(V)[-1]
+
+    for i in range(NLy):
+        for t in range(timetot-1):
+            V[:,i,t] = V[:,i,t] / np.linalg.norm(V[:,i,t])
+    return V
+
+
+le_sweep_models = [ "lively-sweep-12", "blooming-sweep-10", "celestial-sweep-8", "icy-sweep-9", "legendary-sweep-4", "tough-sweep-5", "dazzling-sweep-3"] #"generous-sweep-8"] #, "misunderstood-sweep-12", "divine-sweep-2", "woven-sweep-4",
+
+norm = 13.33
+sweep_path = Path('../L96_d20_rk4')
+for folder_name in list(filter(lambda x: x != 'images', next(os.walk(sweep_path))[1])):
+    sweep_models = list(filter(lambda x: x != 'images', next(os.walk(sweep_path/folder_name))[1]))
+    img_filepath_folder = make_folder_filepath(sweep_path / folder_name,  'images')
     for model_name in sweep_models:
         if model_name in le_sweep_models:
             print(model_name)
             model_path = sweep_path / folder_name / model_name
             args = load_config_to_argparse(model_path)
-            model_dict = load_config_to_dict(model_path)
-            dim = 128  # df_train.shape[0]
+            dim = 20 # df_train.shape[]
             args.sys_dim = dim
-            args.data_path = Path(
-                "/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/KS/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv"
-            )
-            args.lyap_path = Path(
-                "/home/eo821/Documents/PI-LSTM/Lorenz_LSTM/src/trainings/Yael_CSV/KS/le_128_64_20pi_025_tmax_50000.txt"
-            )
+            args.data_path = Path('../Yael_CSV/L96/dim_20_rk4_200000_0.01_stand13.33_trans.csv')
+            args.train_ratio = args.train_ratio*42500/200000
+            args.valid_ratio = args.train_ratio*42500/200000
+            args.lyap_path = Path('../Yael_CSV/L96/dim_20_lyapunov_exponents.txt')
             data = Dataclass(args)
-            epochs = max([int(i) for i in next(os.walk(model_path / "model"))[1]])
+            epochs = max([int(i) for i in next(os.walk(model_path /'model'))[1]])
 
-            img_filepath = make_folder_filepath(model_path, "images")
+            img_filepath = make_folder_filepath(model_path, 'images')        
 
-            t_lyap = 0.08 ** (-1)
+            # Compare this prediction with the LE prediction
+            t_lyap = 1.55**(-1)
             N_lyap = int(t_lyap / (args.delta_t * args.upsampling))
             runner = LSTMRunner(args, "KS_dd", data.idx_lst)
             runner.load_model(model_path, epochs)
@@ -105,9 +145,9 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
             random.seed(0)
             # Set up parameters for LE computation
             start_time = time.time()
-            norm_time = 10
+            norm_time = 1
             N_lyap = int(t_lyap / (args.upsampling * args.delta_t))
-            N = 1000 * N_lyap
+            N = 1 00* N_lyap
             print(f"{N, args.upsampling*args.delta_t}")
             Ntransient = max(int(N / 100), args.window_size + 2)
             N_test = N - Ntransient
@@ -119,7 +159,7 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
             )
             N_test_norm = int(N_test / norm_time)
             print(f"N_test_norm: {N_test_norm}")
-            le_dim = 40
+            le_dim = 20
             # Lyapunov Exponents timeseries
             LE = np.zeros((N_test_norm, le_dim))
             # q and r matrix recorded in time
@@ -140,7 +180,7 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
             delta = q[:, :le_dim]
 
             # initialize model and test window
-            test_window = create_test_window(data.df_train, window_size=args.window_size)
+            test_window = create_test_window(data.df_test, window_size=args.window_size)
             u_t = test_window[:, 0, :]
             h = tf.Variable(
                 model.layers[0].get_initial_state(test_window)[0], trainable=False
@@ -205,12 +245,12 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
 
                     if i % 1000 == 0:
                         print(f"Inside closed loop i = {i}")
-                        if indx != 0:
+                        if indx > 1:
                             lyapunov_exp = (
                                 np.cumsum(np.log(LE[1:indx]), axis=0)
                                 / np.tile(Ttot[1:indx], (le_dim, 1)).T
                             )
-                            print(f"Lyapunov exponents: {lyapunov_exp[-1] } ")
+                            print(f"Lyapunov exponents: {lyapunov_exp.shape, lyapunov_exp[-1] } ")
 
             # thetas_clv, il, D = clv_func_clean.CLV_calculation(qq_t, rr_t, args.sys_dim, 2*args.n_cells, args.delta_t, [6, 1], fname=model_path/f'{N}_clvs.h5', system='lorenz96')
 
@@ -218,7 +258,7 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
                 np.cumsum(np.log(LE[1:]), axis=0) / np.tile(Ttot[1:], (le_dim, 1)).T
             )
 
-            print(f"Reference exponents: {data.ref_lyap[:]}")
+            print(f"Reference exponents: {data.ref_lyap[-1, :]}")
             np.savetxt(model_path / f"{epochs}_lyapunov_exp_{N_test}.txt", lyapunov_exp)
             n_lyap = 20
             fullspace = np.arange(1, n_lyap + 1)
@@ -231,7 +271,7 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
             plt.ylabel(r"$\lambda_k$", fontsize=fs)
             plt.xlabel(r"$k$", fontsize=fs)
 
-            plt.plot(fullspace, data.ref_lyap[:n_lyap], "k-s", markersize=8, label="target")
+            plt.plot(fullspace, data.ref_lyap[-1, :n_lyap], "k-s", markersize=8, label="target")
             plt.plot(
                 fullspace, lyapunov_exp[-1, :n_lyap], "r-o", markersize=6, label="LSTM"
             )
@@ -253,11 +293,11 @@ for folder_name in ['dd-32', 'dd-26','dd-22', 'dd-21', 'dd-19', 'dd-64']:
             )
             plt.close()
             print(f"{model_name} : Lyapunov exponents: {lyapunov_exp[-1] } ")
+            V = compute_CLV(qq_t, rr_t)
             # plot theta distribution
-            filename = model_path / "qr_matrix.h5"
+            filename = model_path / f"v_matrix_{N_test}.h5"
             with h5py.File(filename, "w") as hf:
-                hf.create_dataset("qq_t", data=qq_t)
-                hf.create_dataset("rr_t", data=rr_t)
+                hf.create_dataset("v", data=V)
 
             # f1 = h5py.File(model_path/f'{N}_clvs.h5','r+')
             # FTCLE_lstm = np.array(f1.get('thetas_clv')).T

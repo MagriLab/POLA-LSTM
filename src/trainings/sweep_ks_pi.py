@@ -19,6 +19,8 @@ if gpus:
     except RuntimeError as e:
      # Virtual devices must be set before GPUs have been initialize
         print(e)
+
+
 sys.path.append('../..')
 from lstm.preprocessing.data_class import Dataclass
 from lstm.preprocessing.data_processing import create_test_window
@@ -76,7 +78,7 @@ def main():
         t_lyap = args.lyap**(-1)
         N_lyap = int(t_lyap/(args.delta_t*args.upsampling))
         data = Dataclass(args)
-        runner = LSTMRunner(args, system_name="KS_dd")
+        runner = LSTMRunner(args, system_name="KS", idx_lst=data.idx_lst)
         model = runner.model
         loss_tracker = LossTracker(logs_checkpoint)
         early_stopper = EarlyStopper(patience=args.early_stop_patience, min_delta=1e-8)
@@ -99,21 +101,23 @@ def main():
 
             valid_loss_dd = 0
             valid_loss_pi = 0
+            valid_full_loss = 0 
             for val_step, (x_batch_valid, y_batch_valid) in enumerate(data.valid_dataset):
-                val_loss_dd, valid_loss_reg, val_loss_pi = runner.valid_step_pi(x_batch_valid, y_batch_valid)
+                val_loss_dd, valid_loss_reg, val_loss_pi, val_full_loss = runner.valid_step_pi(x_batch_valid, y_batch_valid)
                 valid_loss_dd += val_loss_dd
                 valid_loss_pi += val_loss_pi
+                valid_full_loss += val_full_loss
             loss_tracker.append_loss_to_tracker('valid', valid_loss_dd, valid_loss_reg, valid_loss_pi, val_step)
             print("VALIDATION: Data-driven loss: %4E; Physics-informed loss at epoch: %.4E; Full loss at epoch: %.4E" %
-                  (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_loss_dd/val_step))
+                  (valid_loss_dd / val_step, valid_loss_pi / val_step, valid_full_loss/val_step))
             
             loss_tracker.save_and_update_loss_txt(logs_checkpoint)
-            early_stopper.early_stop(valid_loss_dd/val_step)
+            early_stopper.early_stop(valid_loss_dd/val_step+valid_loss_pi/val_step)
             wandb.log({'epochs': epoch,
                        'train_dd_loss': float(train_loss_dd/step),
                        'train_physics_loss': float(train_loss_pi/step),
                        'valid_dd_loss': float(valid_loss_dd/val_step),
-                       'valid_full_dd_loss': float(valid_loss_dd/val_step),
+                       'valid_full_dd_loss': float(valid_full_loss/val_step),
                        'valid_physics_loss': float(valid_loss_pi/val_step)})
 
             if epoch % args.epoch_steps == 0 or early_stopper.stop:
@@ -121,7 +125,6 @@ def main():
                 N = 10*N_lyap
 
                 pred = prediction(model, data.df_valid, args.window_size, sys_dim, data.idx_lst, N=N)
-                print(pred.shape)
                 lyapunov_time = np.arange(0, N/N_lyap, args.delta_t*args.upsampling/t_lyap)
                 pred_horizon = lyapunov_time[vpt(pred[args.window_size:], data.df_valid[:, args.window_size:], 0.4)]
                 lyapunov_exponents = compute_lyapunov_exp(
@@ -152,9 +155,9 @@ def main():
         tf.keras.backend.clear_session()    
 
     parser = argparse.ArgumentParser(description='Open Loop')
-    parser.add_argument('--dd_loss_label', type=str, default="full")
-    parser.add_argument('--n_epochs', type=int, default=500)
-    parser.add_argument('--epoch_steps', type=int, default=50)
+    parser.add_argument('--dd_loss_label', type=str, default="partial")
+    parser.add_argument('--n_epochs', type=int, default=2000)
+    parser.add_argument('--epoch_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_cells', type=int, default=200)
     parser.add_argument('--oloop_train', default=True, action='store_true')
@@ -219,26 +222,26 @@ def main():
                 'values': [1]
             },
             'n_random_idx': {
-                'values': [round(128/2), round(128/3),  round(128/4),  round(128/5),  round(128/6),  round(128/7)]
+                'values': [round(128/4), round(128/3)]
             },
             'pi_weighing': {
-                'values': [0.0]
+                'values': [100, 10]
             },
             'n_cells':{
                 'values': [200]
                 },
             'spacing':{
-                'values': ['random']
+                'values': ['random', 'even']
             }
 
         }
     }
-    sweep_id = wandb.sweep(sweep_config, project="KS-partial_to_full_dd")
-    wandb.agent(sweep_id, function=run_lstm, count=12)
+    sweep_id = wandb.sweep(sweep_config, project="KS-partial_to_full_pi")
+    wandb.agent(sweep_id, function=run_lstm, count=8)
 
 
 if __name__ == '__main__':
     main()
 
-# python sweep_ks_pi.py  -dp Yael_CSV/KS/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv -mp KS/128dof_dd/ -lyp Yael_CSV/KS/le_128_64.txt
+# python sweep_ks_pi.py  -dp Yael_CSV/KS/KS_128_dx62_99000_stand_3.58_deltat_0.25_M_64_trans.csv -mp KS/128dof_pi/ -lyp Yael_CSV/KS/le_128_64.txt
 
